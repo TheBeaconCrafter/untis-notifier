@@ -1,12 +1,12 @@
 {
-  "name": "untis",
+  "name": "untis-notifier",
   "version": "1.0.0",
-  "description": "Untis Test",
+  "description": "Receive notifications for schedule changes",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "Vincent Wackler",
   "license": "ISC",
   "type": "module",
   "dependencies": {

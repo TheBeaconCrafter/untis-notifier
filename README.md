@@ -13,7 +13,7 @@ This project is a notification system for Untis, a school scheduling software. I
    ```
 2. Install the required dependencies:
    ```bash
-   npm install node-fetch webuntis path express date-fns
+   npm install node-fetch webuntis path express date-fns ejs
    ```
 3. Set up the configuration file: 
    - Copy the `secretsExample.js` file and rename it to `secrets.js`.
