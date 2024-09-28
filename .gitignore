@@ -10,6 +10,7 @@ lerna-debug.log*
 exams.json
 absences.json
 homework.json
+timetable.json
 secrets.js
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
@@ -134,3 +135,4 @@ dist
 .yarn/install-state.gz
 .pnp.*
 package-lock.json
+misc.json

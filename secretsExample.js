@@ -18,8 +18,14 @@ const enableWebServer = false; // Set to true to enable the debug web interface 
 const webServerPort = 3000; // Port for the debug web interface
 
 const checkInterval = 600000; // Interval in milliseconds to check for new data (do not set too low to avoid getting rate limited by WebUntis)
+const enableAbsenceScanning = true; // Set to true to enable absence scanning
+const enableHomeworkScanning = true; // Set to true to enable homework scanning
+const enableExamScanning = true; // Set to true to enable exam scanning
+const enableTimetableChangeScanning = true; // Set to true to enable exam scanning
 
 const rangeStartSetting = "2024-09-09T00:00:00" // This will be the start of the range for the timetable etc. I recommend setting this to the start of the school year
+
+const enableDebug = false; // Set to true to enable debug mode (more ourput in the console)
 
 // Export all secrets
 export default {
@@ -32,5 +38,10 @@ export default {
     enableWebServer,
     webServerPort,
     checkInterval,
-    rangeStartSetting
+    rangeStartSetting,
+    enableDebug,
+    enableAbsenceScanning,
+    enableHomeworkScanning,
+    enableExamScanning,
+    enableTimetableChangeScanning
 };

@@ -19,17 +19,26 @@ const {
     enableWebServer,
     webServerPort,
     checkInterval,
-    rangeStartSetting
+    rangeStartSetting,
+    enableDebug,
+    enableAbsenceScanning,
+    enableHomeworkScanning,
+    enableExamScanning,
+    enableTimetableChangeScanning
 } = secrets;
 
 // File path to store last absence data
-const absenceFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'absences.json'); // Adjusted for ES6 modules
-const homeworkFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'homework.json'); // Adjusted for ES6 modules
-const examsFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'exams.json'); // Adjusted for ES6 modules
+const absenceFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'absences.json'); // Path to cached absences
+const homeworkFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'homework.json'); // Path to cached homework
+const examsFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'exams.json'); // Path to cached exams
+const timetableFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'timetable.json'); // Path to cached timetable
+const miscFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'misc.json'); // Path for misc.json
 
 // Define __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const versionNumber = '1.0.0';
 
 // Create an Express app
 const app = express();
@@ -49,7 +58,9 @@ async function getTimetable(date) {
         const timetable = await untis.getOwnTimetableFor(date);
 
         // Log the detailed info from WebUntis
-        console.log('Raw timetable data:', timetable);
+        if(enableDebug) {
+            console.log('Raw timetable data:', timetable);
+        }
 
         const formattedTimetable = timetable.map(lesson => {
             const startTime = WebUntis.convertUntisTime(lesson.startTime);
@@ -87,7 +98,9 @@ async function getAbsentLessons() {
         // Fetch absent lessons
         const absentLessons = await untis.getAbsentLesson(rangeStart, rangeEnd);
         
-        console.log('Raw absent lessons data:', absentLessons);
+        if(enableDebug) {
+            console.log('Raw absent lessons data:', absentLessons);
+        }
 
         // Format the absent lessons data
         const formattedAbsentLessons = absentLessons.absences.map(absent => {
@@ -146,8 +159,6 @@ app.get('/absences', async (req, res) => {
     res.render('absences', { absences });
 });
 
-
-
 //////////////////////////////////////
 //         ABSENCE NOTIFIER         //
 //////////////////////////////////////
@@ -157,7 +168,10 @@ async function checkForAbsences() {
     console.log('Checking for absences...');
     try {
         const absentLessons = await getAbsentLessons();
-        console.log('Absent lessons:', absentLessons);
+
+        if(enableDebug) {
+            console.log('Absent lessons:', absentLessons);
+        }
 
         // Load previous absence data
         let previousAbsences = [];
@@ -177,7 +191,11 @@ async function checkForAbsences() {
 
         if (newAbsences.length > 0) {
             // TODO: Notify via Slack or Discord
-            console.log('New absences:', newAbsences);
+            if(enableDebug) {
+                console.log('New absences:', newAbsences);
+            } else {
+                console.log("There are new absences. Notifying Discord...");
+            }
             await notifyDiscordAbsence(newAbsences);
 
             // Update the local absence file with all current absences
@@ -223,6 +241,235 @@ app.post('/check-absences', async (req, res) => {
 });
 
 //////////////////////////////////////
+//         TIMETABLE CACHE          //
+//////////////////////////////////////
+
+async function cacheTimetable() {
+    console.log('Caching timetable...');
+    try {
+        const rangeStart = new Date(); // Today's date
+        const rangeEnd = new Date();
+        rangeEnd.setDate(rangeEnd.getDate() + 14); // 14 days from today
+
+        if (enableDebug) {
+            console.log("Set rangeEnd to:", rangeEnd);
+        }
+
+        // Login to WebUntis
+        await untis.login(secrets.schoolName, secrets.username, secrets.password, secrets.untisURL);
+
+        // Fetch the new timetable for the next two weeks
+        const newTimetable = await untis.getOwnTimetableForRange(rangeStart, rangeEnd);
+
+        if (enableDebug) {
+            console.log('Fetched new timetable:', newTimetable);
+        } else {
+            console.log('Fetched new timetable.');
+        }
+
+        // Load the previous timetable from cache if it exists
+        let previousTimetable = [];
+        if (fs.existsSync(timetableFilePath)) {
+            previousTimetable = JSON.parse(fs.readFileSync(timetableFilePath, 'utf8'));
+        }
+
+        // Load the last cached date from misc.json
+        let lastCachedDate = null;
+        if (fs.existsSync(miscFilePath)) {
+            const miscData = JSON.parse(fs.readFileSync(miscFilePath, 'utf8'));
+            lastCachedDate = miscData.lastCachedDate;
+        }
+
+        // Check the last lesson date in the new timetable
+        let newLastDate = newTimetable.length > 0 
+            ? Math.max(...newTimetable.map(lesson => lesson.date)) 
+            : null;
+
+        if (lastCachedDate && newLastDate) {
+            const lastDate = new Date(lastCachedDate.toString().slice(0, 4), 
+                                       lastCachedDate.toString().slice(4, 6) - 1, 
+                                       lastCachedDate.toString().slice(6, 8));
+            const newDate = new Date(newLastDate.toString().slice(0, 4), 
+                                      newLastDate.toString().slice(4, 6) - 1, 
+                                      newLastDate.toString().slice(6, 8));
+
+            // Check if the new date is exactly one day later than the last cached date
+            const oneDayLater = new Date(lastDate);
+            oneDayLater.setDate(oneDayLater.getDate() + 1);
+
+            if (newDate.getTime() === oneDayLater.getTime()) {
+                // If it's one day later, overwrite the cache and log the action
+                fs.writeFileSync(timetableFilePath, JSON.stringify(newTimetable, null, 2));
+                console.log('Cache deleted and overwritten with new timetable.');
+
+                // Update the last cached date in misc.json
+                fs.writeFileSync(miscFilePath, JSON.stringify({ lastCachedDate: newLastDate }, null, 2));
+                return; // Exit the function early to avoid unnecessary notification
+            }
+        }
+
+        // Compare the new timetable with the cached timetable
+        const changes = compareTimetables(previousTimetable, newTimetable);
+
+        if (changes.length > 0) {
+            // Notify via Discord about the changes
+            await notifyDiscordChanges(changes);
+            console.log('Notified Discord about timetable changes.');
+        } else {
+            console.log('No significant changes in timetable.');
+        }
+
+        // Update the cache with the new timetable (overwrites the old one)
+        fs.writeFileSync(timetableFilePath, JSON.stringify(newTimetable, null, 2));
+        console.log('Timetable cache updated.');
+
+        // Update the last cached date in misc.json
+        fs.writeFileSync(miscFilePath, JSON.stringify({ lastCachedDate: newLastDate }, null, 2));
+
+    } catch (error) {
+        console.error('Error while caching timetable:', error);
+    }
+}
+
+function formatTimeUntis(time) {
+    // Convert integer time (e.g., 845) to HH:MM format
+    const hours = Math.floor(time / 100);
+    const minutes = time % 100;
+    return `${hours}:${minutes < 10 ? '0' : ''}${minutes}`; // Formats to HH:MM
+}
+
+function compareTimetables(oldTimetable, newTimetable) {
+    const changes = [];
+
+    const hasLessonChanged = (oldLesson, newLesson) => {
+        let changeDetails = [];
+
+        if (oldLesson.ro[0]?.name !== newLesson.ro[0]?.name) {
+            changeDetails.push(`Room changed from ${oldLesson.ro[0]?.name || 'Unknown'} to ${newLesson.ro[0]?.name || 'Unknown'}`);
+        }
+        if (oldLesson.te[0]?.name !== newLesson.te[0]?.name) {
+            changeDetails.push(`Teacher changed from ${oldLesson.te[0]?.name || 'Unknown'} to ${newLesson.te[0]?.name || 'Unknown'}`);
+        }
+        if (oldLesson.code !== newLesson.code) {
+            changeDetails.push(`Status changed from ${oldLesson.code || 'Normal'} to ${newLesson.code || 'Normal'}`);
+        }
+
+        return changeDetails.length > 0 ? changeDetails : null;
+    };
+
+    for (let newLesson of newTimetable) {
+        const oldLesson = oldTimetable.find(lesson => lesson.id === newLesson.id);
+
+        if (!oldLesson) {
+            changes.push({
+                type: 'new',
+                lesson: newLesson,
+                startTime: newLesson.startTime, // Make sure these are included
+                endTime: newLesson.endTime,
+            });
+        } else {
+            const changeDetails = hasLessonChanged(oldLesson, newLesson);
+            if (changeDetails) {
+                changes.push({
+                    type: 'modified',
+                    oldLesson,
+                    newLesson,
+                    details: changeDetails,
+                    startTime: newLesson.startTime, // Include these properties
+                    endTime: newLesson.endTime,
+                });
+            }
+        }
+    }
+
+    for (let oldLesson of oldTimetable) {
+        if (!newTimetable.find(lesson => lesson.id === oldLesson.id)) {
+            changes.push({
+                type: 'removed',
+                lesson: oldLesson, // This is correct
+                startTime: oldLesson.startTime, // Include the start time for removed lessons
+                endTime: oldLesson.endTime, // Include the end time for removed lessons
+            });
+        }
+    }    
+
+    return changes;
+}
+
+async function notifyDiscordChanges(changes) {
+    const messages = changes.map(change => {
+        // Check if lessonDate is defined and valid
+        const userId = discordUserID; // ID of the user to ping
+        let lessonDate;
+        if (change.lesson) {
+            lessonDate = new Date(`${change.lesson.date.toString().slice(0, 4)}-${change.lesson.date.toString().slice(4, 6)}-${change.lesson.date.toString().slice(6, 8)}`);
+        } else {
+            console.error('Lesson date is undefined:', change);
+            lessonDate = new Date(); // Fallback to current date if undefined
+        }
+
+        // Check for undefined start and end times
+        const lessonStart = change.startTime ? formatTimeUntis(change.startTime) : 'Unknown start time';
+        const lessonEnd = change.endTime ? formatTimeUntis(change.endTime) : 'Unknown end time';
+
+        if(enableDebug) {
+            console.log("Lesson date is:", lessonDate, "Lesson start is:", lessonStart, "Lesson end is:", lessonEnd);
+        }
+
+        // Prepare message based on lesson type
+        let message;
+
+        if (change.type === 'new') {
+            // Safe access for new lesson details
+            const newLessonName = change.lesson?.su?.[0]?.longname || 'Unknown subject';
+            const newRoomName = change.lesson?.ro?.[0]?.name || 'Unknown room';
+            const newRoomNameLong = change.lesson?.ro?.[0]?.longname || 'Unknown room';
+            const newTeacherName = change.lesson?.te?.[0]?.longname || 'Unknown teacher';
+
+            message = `🆕 New lesson (${newLessonName}) added on ${lessonDate.toLocaleDateString()} ${lessonStart} - ${lessonEnd}: ${newLessonName} in room ${newRoomName} (${newRoomNameLong}) with ${newTeacherName}.\n<@${userId}>`;
+        } else if (change.type === 'modified') {
+            // Safe access for old lesson details
+            const oldLessonName = change.oldLesson?.su?.[0]?.longname || 'Unknown subject';
+            const oldRoomName = change.oldLesson?.ro?.[0]?.name || 'Unknown room';
+            const oldRoomNameLong = change.oldLesson?.ro?.[0]?.longname || 'Unknown room';
+            const oldTeacherName = change.oldLesson?.te?.[0]?.longname || 'Unknown teacher';
+
+            // Safe access for new lesson details
+            const newLessonName = change.newLesson?.su?.[0]?.longname || 'Unknown subject';
+            const newRoomName = change.newLesson?.ro?.[0]?.name || 'Unknown room';
+            const newRoomNameLong = change.newLesson?.ro?.[0]?.longname || 'Unknown room';
+            const newTeacherName = change.newLesson?.te?.[0]?.longname || 'Unknown teacher';
+
+            // Create message with old and new lesson details
+            message = `🔄 Lesson updated on ${lessonDate.toLocaleDateString()} ${lessonStart} - ${lessonEnd}: 
+            \n**Old lesson:** ${oldLessonName} in room ${oldRoomName} (${oldRoomNameLong}) with ${oldTeacherName}.\n**New lesson:** ${newLessonName} in room ${newRoomName} (${newRoomNameLong}) with ${newTeacherName}.\n**Changes:** ${change.details.join(', ')}\n<@${userId}>`;
+        } else if (change.type === 'removed') {
+            // Accessing the correct lesson that was removed
+            const oldLessonName = change.lesson?.su?.[0]?.longname || 'Unknown subject'; // Changed this line
+            const oldRoomName = change.lesson?.ro?.[0]?.name || 'Unknown room'; // Changed this line
+            const oldRoomNameLong = change.lesson?.ro?.[0]?.longname || 'Unknown room'; // Changed this line
+            const oldTeacherName = change.lesson?.te?.[0]?.longname || 'Unknown teacher'; // Changed this line
+        
+            message = `❌ Lesson (${oldLessonName}) removed on ${lessonDate.toLocaleDateString()} ${lessonStart} - ${lessonEnd}: ${oldLessonName} in room ${oldRoomName} (${oldRoomNameLong}).\n<@${userId}>`;
+        }
+        
+
+        return message; // Return the generated message
+    }).filter(message => message !== null).join('\n'); // Filter out null messages
+
+    // Sending the message to Discord only if there are messages to send
+    if (messages) {
+        await fetch(secrets.discordWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content: messages
+            })
+        });
+    }
+}
+
+//////////////////////////////////////
 //          Homework Route          //
 //////////////////////////////////////
 
@@ -255,7 +502,9 @@ app.get('/homework', async (req, res) => {
     try {
         const homeworkData = await getHomeworkAssignments(); // Call the new function
 
-        console.log('Homework assignments:', homeworkData);
+        if(enableDebug) {
+            console.log('Homework assignments:', homeworkData);
+        }
 
         // Render homework.ejs with homework data
         res.render('homework', { homeworks: homeworkData });
@@ -275,7 +524,9 @@ async function checkForHomework() {
     console.log('Checking for homework...');
     try {
         const homeworkAssignments = await getHomeworkAssignments(); // Fetch homework assignments
-        console.log('Homework assignments:', homeworkAssignments);
+        if(enableDebug) {
+            console.log('Homework assignments:', homeworkAssignments);
+        }
 
         // Load previous homework data
         let previousHomework = [];
@@ -290,10 +541,16 @@ async function checkForHomework() {
             )
         );
 
-        console.log('New homework length is:', newHomework.length);
+        if(enableDebug) {
+            console.log('New homework length is:', newHomework.length);
+        }
 
         if (newHomework.length > 0) {
-            console.log('New homework:', newHomework);
+            if(enableDebug) {
+                console.log('New homework:', newHomework);
+            } else {
+                console.log("There are new homework assignments. Notifying Discord...");
+            }
             // Notify via Discord
             await notifyDiscordHomework(newHomework);
 
@@ -382,7 +639,10 @@ async function checkForExams() {
 
         await untis.login(); // Await the login to the WebUntis instance
         const exams = await untis.getExamsForRange(rangeStart, rangeEnd); // Fetch exams
-        console.log('Exams:', exams);
+        
+        if(enableDebug) {
+            console.log('Exams:', exams);
+        }
 
         // Load previous exams data
         let previousExams = [];
@@ -399,10 +659,16 @@ async function checkForExams() {
             )
         );
 
-        console.log('New exams length is:', newExams.length);
+        if(enableDebug) {
+            console.log('New exams length is:', newExams.length);
+        }
 
         if (newExams.length > 0) {
-            console.log('New exams:', newExams);
+            if(enableDebug) {
+                console.log('New exams:', newExams);
+            } else {
+                console.log("There are new exam assignments. Notifying Discord...");
+            }
             // Notify via Discord
             await notifyDiscordExams(newExams);
 
@@ -492,7 +758,9 @@ app.get('/exams', async (req, res) => {
 
         await untis.login(); // Await the login to the WebUntis instance
         const examsData = await untis.getExamsForRange(rangeStart, rangeEnd); // Fetch exams
-        console.log('Exams data:', examsData);
+        if(enableDebug) {
+            console.log('Exams data:', examsData);
+        }
 
         // Format examsData to include formatted exam dates
         const formattedExamsData = examsData.map(exam => {
@@ -550,22 +818,50 @@ app.get('/', async (req, res) => {
 });
 
 function startUntis() {
+    printAsciiArt();
 
-    // Check for absences, homework, and exams on startup
-    checkForAbsences();
-    checkForHomework();
-    checkForExams();
+    //Respect settings from secrets.js
 
-    // Set up timer to check for new data (interval is set in secrets.js)
-    setInterval(async () => {
-        await checkForAbsences();
-    }, checkInterval);
-    setInterval(async () => {
-        await checkForHomework();
-    }, checkInterval);
-    setInterval(async () => {
-        await checkForExams();
-    }, checkInterval);
+    if(enableTimetableChangeScanning){
+        cacheTimetable();
+        setInterval(async () => {
+            await cacheTimetable();
+        }, checkInterval);
+    }
+
+    if(enableExamScanning){
+        checkForExams();
+        setInterval(async () => {
+            await checkForExams();
+        }, checkInterval);
+    }
+
+    if(enableHomeworkScanning){
+        checkForHomework();
+        setInterval(async () => {
+            await checkForHomework();
+        }, checkInterval);
+    }
+
+    if(enableAbsenceScanning){
+        checkForAbsences();
+        setInterval(async () => {
+            await checkForAbsences();
+        }, checkInterval);
+    }
+}
+
+function printAsciiArt() {
+    const art = `
+              __  .__                                __  .__  _____       
+ __ __  _____/  |_|__| ______           ____   _____/  |_|__|/ ____\\__.__.
+|  |  \\/    \\   __\\  |/  ___/  ______  /    \\ /  _ \\   __\\  \\   __<   |  |
+|  |  /   |  \\  | |  |\\___ \\  /_____/ |   |  (  <_> )  | |  ||  |  \\___  |
+|____/|___|  /__| |__/____  >         |___|  /\\____/|__| |__||__|  / ____|
+           \\/             \\/               \\/                      \\/      
+    `;
+    console.log(art);
+    console.log(`\nby vncntwww - Version: ${versionNumber}\n\n`);
 }
 
 if(enableWebServer){

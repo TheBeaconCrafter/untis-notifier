@@ -6,7 +6,22 @@ This project is a notification system for Untis, a school scheduling software. I
 - **Real-time notifications**: The system sends notifications to users whenever there is a change in their schedule.
 - **Customizable notifications**: Users can choose which types of events they want to be notified about and how they want to receive the notifications (e.g., Discord Webhooks, Slack Webhooks).
 
-## Installation:
+## Quick Install:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/TheBeaconCrafter/untis-notifier.git
+   ```
+2. Make the install script executable:
+   ```bash
+   chmod +x setup.sh
+   ```
+3. Run the install script:
+   ```bash
+   ./setup.sh
+   ```
+The script installs screen and npm if not already installed and guides you through the setup process. For manual installation, refer to the paragraph below.
+
+## Manual Install:
 1. Clone the repository:
    ```bash
    git clone https://github.com/TheBeaconCrafter/untis-notifier.git
