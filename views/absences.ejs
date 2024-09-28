@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Absences</title>
+    <script>
+        async function manualCheck() {
+            const response = await fetch('/check-absences', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                alert('Absences checked successfully!');
+                // Optionally, you can refresh the table or do something else
+                location.reload(); // Refresh the page to see updated absences
+            } else {
+                alert('Failed to check absences. Please try again.');
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Absences</h1>
+    
+    <button onclick="manualCheck()">Check Absences</button> <!-- Manual Check Button -->
+    
+    <table border="1">
+        <tr>
+            <th>Student Name</th>
+            <th>Reason</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Created Time</th>
+            <th>Last Edit Time</th>
+            <th>Start Time</th>
+            <th>End Time</th>
+            <th>Updated User</th>
+            <th>Created User</th>
+        </tr>
+        <% absences.forEach(absence => { %>
+        <tr>
+            <td><%= absence.studentName %></td>
+            <td><%= absence.reason %></td>
+            <td><%= absence.date %></td>
+            <td><%= absence.isExcused ? 'Excused' : 'Unexcused' %></td>
+            <td><%= absence.createdTime %></td>
+            <td><%= absence.lastEditTime %></td>
+            <td><%= absence.startTime %></td>
+            <td><%= absence.endTime %></td>
+            <td><%= absence.updatedUser %></td>
+            <td><%= absence.createdUser %></td> <!-- Display created user -->
+        </tr>
+        <% }) %>
+    </table>
+
+    <div>
+        <a href="/">Back to Timetable</a>
+    </div>
+</body>
+</html>

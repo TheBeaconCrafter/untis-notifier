@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timetable</title>
+</head>
+<body>
+    <h1>Timetable for <%= date %></h1>
+    
+    <table border="1">
+        <tr>
+            <th>Subject</th>
+            <th>Room</th>
+            <th>Teacher</th>
+            <th>Time</th>
+            <th>Status</th>
+        </tr>
+        <% timetable.forEach(lesson => { %>
+        <tr>
+            <td><%= lesson.subject %></td>
+            <td><%= lesson.room %></td>
+            <td><%= lesson.teacher %></td>
+            <td><%= lesson.time %></td>
+            <td><%= lesson.isCanceled %></td> <!-- Show 'Canceled' or 'Active' -->
+        </tr>
+        <% }) %>
+    </table>
+
+    <div>
+        <a href="/?date=<%= previousDay %>">Previous Day</a>
+        <a href="/?date=<%= nextDay %>">Next Day</a>
+        <a href="/absences">View Absences</a> <!-- Link to the absences page -->
+        <a href="/homework">View Homework</a> <!-- Link to the absences page -->
+    </div>    
+</body>
+</html>

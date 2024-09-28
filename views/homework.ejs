@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homework Assignments</title>
+</head>
+<body>
+    <h1>Homework Assignments</h1>
+    <% if (homeworks.length > 0) { %>
+        <table>
+            <thead>
+                <tr>
+                    <th>Subject (Lesson ID)</th>
+                    <th>Due Date</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% homeworks.forEach(homework => { %>
+                    <tr>
+                        <td><%= homework.lessonId %></td> <!-- Display lessonId directly -->
+                        <td><%= homework.dueDate.toLocaleDateString() %></td> <!-- Format dueDate -->
+                        <td><%= homework.text %></td>
+                    </tr>
+                <% }); %>
+            </tbody>
+        </table>
+    <% } else { %>
+        <p>No homework assignments found.</p>
+    <% } %>
+    <div>
+        <a href="/">Back to Timetable</a>
+    </div>
+</body>
+</html>

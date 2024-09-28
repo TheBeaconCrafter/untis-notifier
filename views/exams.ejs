@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exams</title>
+    <link rel="stylesheet" href="/styles.css"> <!-- Add your CSS file here -->
+</head>
+<body>
+    <h1>Upcoming Exams</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Exam ID</th>
+                <th>Name</th>
+                <th>Subject</th>
+                <th>Date</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Room(s)</th>
+                <th>Teachers</th>
+                <th>Assigned Students</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% for (let exam of exams) { %>
+                <tr>
+                    <td><%= exam.id %></td>
+                    <td><%= exam.name %></td>
+                    <td><%= exam.subject %></td>
+                    <!-- Use the formatDateExams function for examDate -->
+                    <td><%= formatDateExams(String(exam.examDate)) %></td>
+                    <td><%= new Date(exam.startTime).toLocaleTimeString() %></td>
+                    <td><%= new Date(exam.endTime).toLocaleTimeString() %></td>
+                    <td><%= exam.rooms.join(', ') %></td>
+                    <td><%= exam.teachers.join(', ') %></td>
+                    <td><%= exam.assignedStudents.map(s => s.displayName).join(', ') %></td>
+                </tr>
+            <% } %>
+        </tbody>
+    </table>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "name": "untis",
+  "version": "1.0.0",
+  "description": "Untis Test",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "ejs": "^3.1.10",
+    "express": "^4.21.0",
+    "node-fetch": "^3.3.2",
+    "path": "^0.12.7",
+    "webuntis": "^2.2.1"
+  }
+}
