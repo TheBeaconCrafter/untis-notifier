@@ -6,6 +6,8 @@ This project is a notification system for Untis, a school scheduling software. I
 - **Real-time notifications**: The system sends notifications to users whenever there is a change in their schedule.
 - **Customizable notifications**: Users can choose which types of events they want to be notified about and how they want to receive the notifications (e.g., Discord Webhooks, Slack Webhooks).
 
+**⚠️ IMPORTANT ⚠️** This project was built and tested on Node JS version v20.17.0. It may fail to run on older/newer versions.
+
 ## Quick Install:
 1. Clone the repository:
    ```bash
