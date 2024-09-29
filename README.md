@@ -5,6 +5,7 @@ This project is a notification system for Untis, a school scheduling software. I
 ## Features:
 - **Real-time notifications**: The system sends notifications to users whenever there is a change in their schedule.
 - **Customizable notifications**: Users can choose which types of events they want to be notified about and how they want to receive the notifications (e.g., Discord Webhooks, Slack Webhooks).
+- **iCal Integration**: Sync your timetable to your calendar app with iCal. The calendar stream shows you when, where and with whom your classes are.
 - **No exposed ports**: You don't have to expose any ports or have an outward facing server due to the use of webhooks.
 
 **⚠️ IMPORTANT ⚠️** This project was built and tested on Node JS version v20.17.0. It may fail to run on older/newer versions.
@@ -42,8 +43,8 @@ The script installs screen and npm if not already installed and guides you throu
    ```
 
 ## Usage:
-- The system monitors Untis automatically for changes in exams, homework, absences, and timetable changes every 10 minutes.
-- There is a debug web interface at `http://localhost:3000` which should not (yet) be exposed to the internet.
+- The system monitors Untis automatically for changes in exams, homework, absences, and timetable changes every 10 minutes (customizable).
+- There is a debug web interface at `http://localhost:3000` which should not (yet) be exposed to the internet. There are options for keeping it off in the secrets file.
 - **Note**: This software is in early development, so expect bugs. It was built and tested with node version v20.17.0.
 
 ## Contributing:
