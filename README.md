@@ -35,7 +35,7 @@ The script installs screen and npm if not already installed and guides you throu
    npm install node-fetch webuntis path express date-fns ejs ical-generator readline
    ```
 3. Set up the configuration file: 
-   - Copy the `secretsExample.js` file and rename it to `secrets.js`.
+   - Copy the `configExample.js` file and rename it to `config.js`.
    - Fill in the necessary information, such as your Untis credentials and notification settings.
 4. Run the application:
    ```bash
@@ -44,7 +44,7 @@ The script installs screen and npm if not already installed and guides you throu
 
 ## iCal Sync
 - untis-notify can sync your timetable to your favorite calendar app (provided it supports iCal).
-- For this feature to work, go into your secrets.js and enable **enableWebServer**, **enableIcalStreaming** and set your **webServerPort** to one that is open to the web.
+- For this feature to work, go into your config.js and enable **enableWebServer**, **enableIcalStreaming** and set your **webServerPort** to one that is open to the web.
 - If you want to make sure that nobody can trigger an unauthorized API refresh via the webportal, please enable **disableRoutesExceptIcal** (highly recommended in production).
 - Your calendar will be available at http://YOURSERVER:PORT/timetable.ics
 - Keep in mind that this calendar is open to anyone with the link
