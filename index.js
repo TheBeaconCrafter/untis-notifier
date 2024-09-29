@@ -513,7 +513,7 @@ async function icalStreaming(timetable) {
 
             // Use lesson's subject name, fallback to "Lesson"
             const summary = lesson.su[0] && lesson.su[0].longname 
-                ? lesson.su[0].name 
+                ? lesson.su[0].longname 
                 : 'Lesson';
 
             if(enableDebug) {
