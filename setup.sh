@@ -46,12 +46,14 @@ read -p "Enter your WebUntis base URL (e.g., borys.webuntis.com, you can find th
 prompt_true_false "Enable Web Server? (Not recommended, do not expose to the web)" enableWebServer
 read -p "Enter the web server port (default 3000): " webServerPort
 webServerPort=${webServerPort:-3000}
+prompt_true_false "Disable all routes except iCal? (Recommended for production to keep the server secure)" disableRoutesWoIcal
 read -p "Enter check interval in milliseconds (default 600000): " checkInterval
 checkInterval=${checkInterval:-600000}
 prompt_true_false "Enable absence scanning?" enableAbsenceScanning
 prompt_true_false "Enable homework scanning?" enableHomeworkScanning
 prompt_true_false "Enable exam scanning?" enableExamScanning
 prompt_true_false "Enable timetable change scanning?" enableTimetableChangeScanning
+prompt_true_false "Enable iCal streaming (Beta, allows to sync Untis to your calendar)?" enableIcalStreaming
 read -p "Enter the range start setting (e.g., 2024-09-09T00:00:00, default is 2024-09-09T00:00:00): " rangeStartSetting
 rangeStartSetting=${rangeStartSetting:-2024-09-09T00:00:00} # Default to specified date
 prompt_true_false "Enable debug mode?" enableDebug
@@ -93,7 +95,7 @@ if ! command -v npm &> /dev/null; then
 fi
 
 echo "Installing npm packages..."
-npm install node-fetch webuntis path express date-fns ejs
+npm install node-fetch webuntis path express date-fns ejs ical-generator readline
 
 # Create start.sh file
 echo "Creating start.sh..."
@@ -123,8 +125,9 @@ const username = '$username'; // Replace with your WebUntis username
 const password = '$password'; // Replace with your WebUntis password
 const untisURL = '$untisURL'; // Log into Webuntis online, search for your school and press login. Copy the base URL and paste it here (ex. borys.webuntis.com)
 
-const enableWebServer = $enableWebServer; // Set to true to enable the debug web interface (do not expose to the web!)
+const enableWebServer = $enableWebServer; // Set to true to enable the debug web interface, required for iCal sync
 const webServerPort = $webServerPort; // Port for the debug web interface
+const disableRoutesExceptIcal = $disableRoutesWoIcal; // Set to true to disable all routes except the iCal route (recommended for prod to keep the server secure)
 
 const checkInterval = $checkInterval; // Interval in milliseconds to check for new data (do not set too low to avoid getting rate limited by WebUntis)
 const enableAbsenceScanning = $enableAbsenceScanning; // Set to true to enable absence scanning
@@ -133,6 +136,8 @@ const enableExamScanning = $enableExamScanning; // Set to true to enable exam sc
 const enableTimetableChangeScanning = $enableTimetableChangeScanning; // Set to true to enable exam scanning
 
 const rangeStartSetting = "$rangeStartSetting"; // This will be the start of the range for the timetable etc. I recommend setting this to the start of the school year
+
+const enableIcalStreaming = $enableIcalStreaming; // Set to true to enable iCal sync (this will allow you to sync your timetable with your calendar app) - Only works if web server is on
 
 const enableDebug = $enableDebug; // Set to true to enable debug mode (more output in the console)
 
@@ -152,7 +157,9 @@ export default {
     enableAbsenceScanning,
     enableHomeworkScanning,
     enableExamScanning,
-    enableTimetableChangeScanning
+    enableTimetableChangeScanning,
+    enableIcalStreaming,
+    disableRoutesExceptIcal
 };
 EOF
 

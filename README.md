@@ -31,7 +31,7 @@ The script installs screen and npm if not already installed and guides you throu
    ```
 2. Install the required dependencies:
    ```bash
-   npm install node-fetch webuntis path express date-fns ejs
+   npm install node-fetch webuntis path express date-fns ejs ical-generator readline
    ```
 3. Set up the configuration file: 
    - Copy the `secretsExample.js` file and rename it to `secrets.js`.

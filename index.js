@@ -3,6 +3,8 @@ import { WebUntis } from 'webuntis';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseISO, format, addDays, subDays } from 'date-fns';
+import ical from 'ical-generator';
+import readline from 'readline';
 
 import fetch from 'node-fetch';
 import fs from 'fs';
@@ -24,7 +26,9 @@ const {
     enableAbsenceScanning,
     enableHomeworkScanning,
     enableExamScanning,
-    enableTimetableChangeScanning
+    enableTimetableChangeScanning,
+    enableIcalStreaming,
+    disableRoutesExceptIcal
 } = secrets;
 
 // File path to store last absence data
@@ -38,7 +42,7 @@ const miscFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'mi
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const versionNumber = '1.0.0';
+const versionNumber = '1.0.1';
 
 // Create an Express app
 const app = express();
@@ -154,10 +158,12 @@ function formatDate(date) {
 }
 
 // Route to display absences
-app.get('/absences', async (req, res) => {
-    const absences = await getAbsentLessons();
-    res.render('absences', { absences });
-});
+if(!disableRoutesExceptIcal) {
+    app.get('/absences', async (req, res) => {
+        const absences = await getAbsentLessons();
+        res.render('absences', { absences });
+    });
+}
 
 //////////////////////////////////////
 //         ABSENCE NOTIFIER         //
@@ -165,7 +171,7 @@ app.get('/absences', async (req, res) => {
 
 // Function to check for absences
 async function checkForAbsences() {
-    console.log('Checking for absences...');
+    console.log('[UNTIS] Checking for absences...');
     try {
         const absentLessons = await getAbsentLessons();
 
@@ -245,7 +251,7 @@ app.post('/check-absences', async (req, res) => {
 //////////////////////////////////////
 
 async function cacheTimetable() {
-    console.log('Caching timetable...');
+    console.log('[CACHING] Caching timetable...');
     try {
         const rangeStart = new Date(); // Today's date
         const rangeEnd = new Date();
@@ -262,9 +268,14 @@ async function cacheTimetable() {
         const newTimetable = await untis.getOwnTimetableForRange(rangeStart, rangeEnd);
 
         if (enableDebug) {
-            console.log('Fetched new timetable:', newTimetable);
+            console.log('[CACHING] Fetched new timetable:', newTimetable);
         } else {
-            console.log('Fetched new timetable.');
+            console.log('[CACHING] Fetched new timetable.');
+        }
+
+        if(enableIcalStreaming) {
+            // Call the icalStreaming function to generate the iCal file
+            await icalStreaming(newTimetable);
         }
 
         // Load the previous timetable from cache if it exists
@@ -316,12 +327,12 @@ async function cacheTimetable() {
             await notifyDiscordChanges(changes);
             console.log('Notified Discord about timetable changes.');
         } else {
-            console.log('No significant changes in timetable.');
+            console.log('[CACHING] No significant changes in timetable.');
         }
 
         // Update the cache with the new timetable (overwrites the old one)
         fs.writeFileSync(timetableFilePath, JSON.stringify(newTimetable, null, 2));
-        console.log('Timetable cache updated.');
+        console.log('[CACHING] Timetable cache updated.');
 
         // Update the last cached date in misc.json
         fs.writeFileSync(miscFilePath, JSON.stringify({ lastCachedDate: newLastDate }, null, 2));
@@ -470,6 +481,102 @@ async function notifyDiscordChanges(changes) {
 }
 
 //////////////////////////////////////
+// ICal Streaming (Timetable Sync)  //
+//////////////////////////////////////
+
+async function icalStreaming(timetable) {
+    try {
+        const calendar = ical({ name: 'School Timetable' });
+
+        timetable.forEach(lesson => {
+            // Create the start and end times from lesson data
+            if(enableDebug) {
+                console.log("Lesson data:", lesson);
+            }
+            
+            // Extract date components
+            const year = parseInt(lesson.date.toString().slice(0, 4), 10);
+            const month = parseInt(lesson.date.toString().slice(4, 6), 10) - 1; // Month is 0-indexed
+            const day = parseInt(lesson.date.toString().slice(6, 8), 10);
+
+            // Extract start time components
+            const startHour = Math.floor(lesson.startTime / 100); // Get the hour (e.g., 945 -> 9)
+            const startMinute = lesson.startTime % 100; // Get the minute (e.g., 945 -> 45)
+
+            // Extract end time components (assuming endTime is provided in the same format)
+            const endHour = Math.floor(lesson.endTime / 100);
+            const endMinute = lesson.endTime % 100;
+
+            // Create start and end date objects
+            const start = new Date(year, month, day, startHour, startMinute);
+            const end = new Date(year, month, day, endHour, endMinute);
+
+            // Use lesson's subject name, fallback to "Lesson"
+            const summary = lesson.su[0] && lesson.su[0].longname 
+                ? lesson.su[0].name 
+                : 'Lesson';
+
+            if(enableDebug) {
+                console.log("Summary is:", summary);
+            }
+
+            // Use room name and longname if available, fallback to "Classroom"
+            const location = lesson.ro[0] && lesson.ro[0].name 
+                ? `${lesson.ro[0].name} (${lesson.ro[0].longname || ''})` 
+                : 'Classroom';
+
+            if(enableDebug) {
+                console.log("Location is:", location);
+            }
+
+            // Use teachers' names if available, fallback to "No teacher assigned"
+            const description = lesson.te[0] && lesson.te[0].longname
+                ? lesson.te[0].longname 
+                : 'No teacher assigned';
+
+            if(enableDebug) {
+                console.log("Description is:", description);
+            }
+
+            // Add an event to the iCal calendar
+            calendar.createEvent({
+                start: start,
+                end: end,
+                summary: summary, // Lesson name as summary
+                location: location, // Room number + longname as location
+                description: description // Teachers as description
+            });
+        });
+
+        // Define the path where the iCal file will be saved
+        const icalFilePath = path.join(__dirname, 'timetable.ics');
+
+        // Write the iCal data to a file
+        fs.writeFileSync(icalFilePath, calendar.toString());
+        console.log('[ICAL] iCal file generated at:', icalFilePath);
+    } catch (error) {
+        console.error('[ICAL] Error while generating iCal:', error);
+    }
+}
+
+//Server
+
+// Serve the iCal file at a specific URL
+if(enableIcalStreaming) {
+app.get('/timetable.ics', (req, res) => {
+    const icalFilePath = path.join(__dirname, 'timetable.ics');
+    if (fs.existsSync(icalFilePath)) {
+        // Set the Content-Type header to 'text/calendar' for iCal files
+        res.setHeader('Content-Type', 'text/calendar');
+        res.sendFile(icalFilePath);
+    } else {
+        res.status(404).send('iCal file not found');
+    }
+});
+}
+
+
+//////////////////////////////////////
 //          Homework Route          //
 //////////////////////////////////////
 
@@ -498,30 +605,32 @@ async function getHomeworkAssignments() {
 }
 
 // Route to display homework assignments for a specific date range
-app.get('/homework', async (req, res) => {
-    try {
-        const homeworkData = await getHomeworkAssignments(); // Call the new function
+if (!disableRoutesExceptIcal) {
+    app.get('/homework', async (req, res) => {
+        try {
+            const homeworkData = await getHomeworkAssignments(); // Call the new function
 
-        if(enableDebug) {
-            console.log('Homework assignments:', homeworkData);
+            if(enableDebug) {
+                console.log('Homework assignments:', homeworkData);
+            }
+
+            // Render homework.ejs with homework data
+            res.render('homework', { homeworks: homeworkData });
+        } catch (error) {
+            console.error('Error fetching homework:', error);
+            res.status(500).send('Error fetching homework assignments.');
+        } finally {
+            await untis.logout(); // Log out after fetching the homework to free resources
         }
-
-        // Render homework.ejs with homework data
-        res.render('homework', { homeworks: homeworkData });
-    } catch (error) {
-        console.error('Error fetching homework:', error);
-        res.status(500).send('Error fetching homework assignments.');
-    } finally {
-        await untis.logout(); // Log out after fetching the homework to free resources
-    }
-});
+    });
+}
 
 //////////////////////////////////////
 //         Homework Notifier        //
 //////////////////////////////////////
 
 async function checkForHomework() {
-    console.log('Checking for homework...');
+    console.log('[UNTIS] Checking for homework...');
     try {
         const homeworkAssignments = await getHomeworkAssignments(); // Fetch homework assignments
         if(enableDebug) {
@@ -630,8 +739,8 @@ async function notifyDiscordHomework(homework) {
 //          Exams Notifier          //
 //////////////////////////////////////
 
-async function checkForExams() {
-    console.log('Checking for exams...');
+async function checkForExams(debug) {
+    console.log('[UNTIS] Checking for exams...');
     try {
         const rangeStart = new Date(rangeStartSetting); // Start from September 9th, 2024
         const rangeEnd = new Date(); // End at today
@@ -659,7 +768,7 @@ async function checkForExams() {
             )
         );
 
-        if(enableDebug) {
+        if(enableDebug || debug) {
             console.log('New exams length is:', newExams.length);
         }
 
@@ -750,39 +859,41 @@ async function notifyDiscordExams(exams) {
     }
 }
 
-app.get('/exams', async (req, res) => {
-    try {
-        const rangeStart = new Date(rangeStartSetting); // Start from given range
-        const rangeEnd = new Date(); // End at today
-        rangeEnd.setDate(rangeEnd.getDate() + 365); // Extend the end date by 365 days
+if(!disableRoutesExceptIcal) {
+    app.get('/exams', async (req, res) => {
+        try {
+            const rangeStart = new Date(rangeStartSetting); // Start from given range
+            const rangeEnd = new Date(); // End at today
+            rangeEnd.setDate(rangeEnd.getDate() + 365); // Extend the end date by 365 days
 
-        await untis.login(); // Await the login to the WebUntis instance
-        const examsData = await untis.getExamsForRange(rangeStart, rangeEnd); // Fetch exams
-        if(enableDebug) {
-            console.log('Exams data:', examsData);
+            await untis.login(); // Await the login to the WebUntis instance
+            const examsData = await untis.getExamsForRange(rangeStart, rangeEnd); // Fetch exams
+            if(enableDebug) {
+                console.log('Exams data:', examsData);
+            }
+
+            // Format examsData to include formatted exam dates
+            const formattedExamsData = examsData.map(exam => {
+                const examDateString = String(exam.examDate); // Ensure examDate is a string
+
+                return {
+                    ...exam,
+                    formattedExamDate: formatDateExams(examDateString), // Convert examDate to readable format
+                    formattedStartTime: new Date(exam.startTime).toLocaleTimeString(),
+                    formattedEndTime: new Date(exam.endTime).toLocaleTimeString(),
+                };
+            });
+
+            // Render exams.ejs with formatted exams data and the formatDateExams function
+            res.render('exams', { exams: formattedExamsData, formatDateExams });
+        } catch (error) {
+            console.error('Error fetching exams:', error);
+            res.status(500).send('Error fetching exam assignments.');
+        } finally {
+            await untis.logout(); // Log out after fetching the exams to free resources
         }
-
-        // Format examsData to include formatted exam dates
-        const formattedExamsData = examsData.map(exam => {
-            const examDateString = String(exam.examDate); // Ensure examDate is a string
-
-            return {
-                ...exam,
-                formattedExamDate: formatDateExams(examDateString), // Convert examDate to readable format
-                formattedStartTime: new Date(exam.startTime).toLocaleTimeString(),
-                formattedEndTime: new Date(exam.endTime).toLocaleTimeString(),
-            };
-        });
-
-        // Render exams.ejs with formatted exams data and the formatDateExams function
-        res.render('exams', { exams: formattedExamsData, formatDateExams });
-    } catch (error) {
-        console.error('Error fetching exams:', error);
-        res.status(500).send('Error fetching exam assignments.');
-    } finally {
-        await untis.logout(); // Log out after fetching the exams to free resources
-    }
-});
+    });
+}
 
 // Function to format date from YYYYMMDD to a more readable format
 function formatDateExams(dateString) {
@@ -798,24 +909,97 @@ function formatDateExams(dateString) {
 //////////////////////////////////////
 
 // Route to display timetable for a specific day
-app.get('/', async (req, res) => {
-    // Get the date from the query parameter, or default to today
-    const dateString = req.query.date || new Date().toISOString().split('T')[0];
-    const selectedDate = parseISO(dateString);
-    
-    const timetable = await getTimetable(selectedDate);
+if(!disableRoutesExceptIcal) {
+    app.get('/', async (req, res) => {
+        // Get the date from the query parameter, or default to today
+        const dateString = req.query.date || new Date().toISOString().split('T')[0];
+        const selectedDate = parseISO(dateString);
+        
+        const timetable = await getTimetable(selectedDate);
 
-    // Prepare previous and next day links
-    const previousDay = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
-    const nextDay = format(addDays(selectedDate, 1), 'yyyy-MM-dd');
+        // Prepare previous and next day links
+        const previousDay = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
+        const nextDay = format(addDays(selectedDate, 1), 'yyyy-MM-dd');
 
-    res.render('timetable', { 
-        timetable, 
-        date: format(selectedDate, 'yyyy-MM-dd'), 
-        previousDay, 
-        nextDay 
+        res.render('timetable', { 
+            timetable, 
+            date: format(selectedDate, 'yyyy-MM-dd'), 
+            previousDay, 
+            nextDay 
+        });
     });
+}
+
+//////////////////////////////////////
+// READLINE INTERFACE FOR COMMANDS  //
+//////////////////////////////////////
+
+// Create an interface to listen for input
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
 });
+
+// Available commands
+const commands = {
+    help: () => {
+        console.log("Available commands:");
+        console.log("help - Displays this help message");
+        console.log("status - Displays the current scanning status");
+        console.log("exit - Exits the console");
+        console.log("exams - Checks for new exams");
+        console.log("timetable - Caches the timetable");
+        console.log("absences - Checks for new absences");
+        console.log("homework - Checks for new homework");
+    },
+    status: () => {
+        console.log("Current scanner status:");
+        console.log(`Timetable scanning: ${enableTimetableChangeScanning ? "Enabled" : "Disabled"}`);
+        console.log(`Exam scanning: ${enableExamScanning ? "Enabled" : "Disabled"}`);
+        console.log(`Homework scanning: ${enableHomeworkScanning ? "Enabled" : "Disabled"}`);
+        console.log(`Absence scanning: ${enableAbsenceScanning ? "Enabled" : "Disabled"}`);
+    },
+    exams: () => {
+        checkForExams(true);
+    },
+    timetable: () => {
+        cacheTimetable();
+    },
+    absences: () => {
+        checkForAbsences();
+    },
+    homework: () => {
+        checkForHomework();
+    },
+    exit: () => {
+        console.log("Exiting console...");
+        process.exit(0);
+    }
+};
+
+// Handle input and trigger appropriate command
+function listenForCommands() {
+    rl.setPrompt("> ");  // Show prompt like in a console
+    rl.prompt();
+    
+    rl.on('line', (input) => {
+        const args = input.trim().split(' ');
+        const command = args[0].toLowerCase();  // Get the command (first word)
+        
+        if (commands[command]) {
+            commands[command](...args.slice(1));  // Execute the command
+        } else {
+            console.log(`Unknown command: ${command}. Type 'help' for available commands.`);
+        }
+
+        rl.prompt();  // Show prompt again
+    });
+}
+
+
+//////////////////////////////////////
+//          START SERVER            //
+//////////////////////////////////////
 
 function startUntis() {
     printAsciiArt();
@@ -830,9 +1014,9 @@ function startUntis() {
     }
 
     if(enableExamScanning){
-        checkForExams();
+        checkForExams(false);
         setInterval(async () => {
-            await checkForExams();
+            await checkForExams(false);
         }, checkInterval);
     }
 
@@ -866,9 +1050,11 @@ function printAsciiArt() {
 
 if(enableWebServer){
     app.listen(webServerPort, () => {
-        console.log(`Server running at http://localhost:${port}`);
         startUntis();
+        console.log(`[WEBSERVER] Server now running at http://localhost:${port}`);
+        listenForCommands();
     });
 } else {
     startUntis();
+    listenForCommands();
 }

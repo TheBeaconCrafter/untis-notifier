@@ -14,8 +14,9 @@ const username = 'Doe_John'; // Replace with your WebUntis username
 const password = '123456'; // Replace with your WebUntis password
 const untisURL = 'https://xxxxx.webuntis.com'; // Log into Webuntis online, search for your school and press login. Copy the base URL and paste it here (ex. borys.webuntis.com)
 
-const enableWebServer = false; // Set to true to enable the debug web interface (do not expose to the web!)
+const enableWebServer = false; // Set to true to enable the debug web interface, required for iCal sync
 const webServerPort = 3000; // Port for the debug web interface
+const disableRoutesExceptIcal = true; // Set to true to disable all routes except the iCal route (recommended for prod to keep the server secure)
 
 const checkInterval = 600000; // Interval in milliseconds to check for new data (do not set too low to avoid getting rate limited by WebUntis)
 const enableAbsenceScanning = true; // Set to true to enable absence scanning
@@ -25,9 +26,11 @@ const enableTimetableChangeScanning = true; // Set to true to enable exam scanni
 
 const rangeStartSetting = "2024-09-09T00:00:00" // This will be the start of the range for the timetable etc. I recommend setting this to the start of the school year
 
+const enableIcalStreaming = false; // Set to true to enable iCal sync (this will allow you to sync your timetable with your calendar app) - Only works if web server is on
+
 const enableDebug = false; // Set to true to enable debug mode (more ourput in the console)
 
-// Export all secrets
+// Export all secrets - do not modify!
 export default {
     discordWebhookUrl,
     discordUserID,
@@ -43,5 +46,7 @@ export default {
     enableAbsenceScanning,
     enableHomeworkScanning,
     enableExamScanning,
-    enableTimetableChangeScanning
+    enableTimetableChangeScanning,
+    enableIcalStreaming,
+    disableRoutesExceptIcal
 };
