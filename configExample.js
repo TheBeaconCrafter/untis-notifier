@@ -1,8 +1,8 @@
-///////////////////////////////////
-//            SECRETS            //
-///////////////////////////////////
+//////////////////////////////////
+//            CONFIG            //
+//////////////////////////////////
 
-// After you have filled in the following information, rename this file to secrets.js
+// After you have filled in the following information, rename this file to config.js
 
 // Discord Webhook URL
 const discordWebhookUrl = 'https://discord.com/api/webhooks/????????'; // Replace with your Discord Webhook URL

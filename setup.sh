@@ -106,14 +106,14 @@ echo "echo 'To enter the screen session, run: screen -r untis-notify'" >> start.
 echo "echo 'To close the screen session, press Ctrl+A then D'" >> start.sh
 chmod +x start.sh
 
-# Create secrets.js file
-echo "Creating secrets.js..."
-cat << EOF > secrets.js
-///////////////////////////////////
-//            SECRETS            //
-///////////////////////////////////
+# Create config.js file
+echo "Creating config.js..."
+cat << EOF > config.js
+//////////////////////////////////
+//            CONFIG            //
+//////////////////////////////////
 
-// After you have filled in the following information, rename this file to secrets.js
+// After you have filled in the following information, rename this file to config.js
 
 // Discord Webhook URL
 const discordWebhookUrl = '$discordWebhookUrl'; // Replace with your Discord Webhook URL
@@ -163,4 +163,4 @@ export default {
 };
 EOF
 
-echo "Setup completed! Please review the settings in secrets.js and make any necessary adjustments."
+echo "Setup completed! Please review the settings in config.js and make any necessary adjustments."

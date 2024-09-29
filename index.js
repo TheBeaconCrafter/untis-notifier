@@ -8,9 +8,9 @@ import readline from 'readline';
 
 import fetch from 'node-fetch';
 import fs from 'fs';
-import secrets from './secrets.js';
+import secrets from './config.js';
 
-// Destructure the variables from secrets
+// Destructure the variables from secrets - now config.js
 const { 
     discordWebhookUrl,
     discordUserID,
@@ -30,6 +30,8 @@ const {
     enableIcalStreaming,
     disableRoutesExceptIcal
 } = secrets;
+
+let routesEnabled = !disableRoutesExceptIcal;
 
 // File path to store last absence data
 const absenceFilePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'absences.json'); // Path to cached absences
@@ -158,12 +160,13 @@ function formatDate(date) {
 }
 
 // Route to display absences
-if(!disableRoutesExceptIcal) {
-    app.get('/absences', async (req, res) => {
-        const absences = await getAbsentLessons();
-        res.render('absences', { absences });
-    });
-}
+app.get('/absences', async (req, res) => {
+    if (!routesEnabled) {
+        return res.status(403).send('Webinterface is disabled.');
+    }
+    const absences = await getAbsentLessons();
+    res.render('absences', { absences });
+});
 
 //////////////////////////////////////
 //         ABSENCE NOTIFIER         //
@@ -605,25 +608,26 @@ async function getHomeworkAssignments() {
 }
 
 // Route to display homework assignments for a specific date range
-if (!disableRoutesExceptIcal) {
-    app.get('/homework', async (req, res) => {
-        try {
-            const homeworkData = await getHomeworkAssignments(); // Call the new function
+app.get('/homework', async (req, res) => {
+    if (!routesEnabled) {
+        return res.status(403).send('Webinterface is disabled.');
+    }
+    try {
+        const homeworkData = await getHomeworkAssignments(); // Call the new function
 
-            if(enableDebug) {
-                console.log('Homework assignments:', homeworkData);
-            }
-
-            // Render homework.ejs with homework data
-            res.render('homework', { homeworks: homeworkData });
-        } catch (error) {
-            console.error('Error fetching homework:', error);
-            res.status(500).send('Error fetching homework assignments.');
-        } finally {
-            await untis.logout(); // Log out after fetching the homework to free resources
+        if(enableDebug) {
+            console.log('Homework assignments:', homeworkData);
         }
-    });
-}
+
+        // Render homework.ejs with homework data
+        res.render('homework', { homeworks: homeworkData });
+    } catch (error) {
+        console.error('Error fetching homework:', error);
+        res.status(500).send('Error fetching homework assignments.');
+    } finally {
+        await untis.logout(); // Log out after fetching the homework to free resources
+    }
+});
 
 //////////////////////////////////////
 //         Homework Notifier        //
@@ -859,41 +863,42 @@ async function notifyDiscordExams(exams) {
     }
 }
 
-if(!disableRoutesExceptIcal) {
-    app.get('/exams', async (req, res) => {
-        try {
-            const rangeStart = new Date(rangeStartSetting); // Start from given range
-            const rangeEnd = new Date(); // End at today
-            rangeEnd.setDate(rangeEnd.getDate() + 365); // Extend the end date by 365 days
+app.get('/exams', async (req, res) => {
+    if (!routesEnabled) {
+        return res.status(403).send('Webinterface is disabled.');
+    }
+    try {
+        const rangeStart = new Date(rangeStartSetting); // Start from given range
+        const rangeEnd = new Date(); // End at today
+        rangeEnd.setDate(rangeEnd.getDate() + 365); // Extend the end date by 365 days
 
-            await untis.login(); // Await the login to the WebUntis instance
-            const examsData = await untis.getExamsForRange(rangeStart, rangeEnd); // Fetch exams
-            if(enableDebug) {
-                console.log('Exams data:', examsData);
-            }
-
-            // Format examsData to include formatted exam dates
-            const formattedExamsData = examsData.map(exam => {
-                const examDateString = String(exam.examDate); // Ensure examDate is a string
-
-                return {
-                    ...exam,
-                    formattedExamDate: formatDateExams(examDateString), // Convert examDate to readable format
-                    formattedStartTime: new Date(exam.startTime).toLocaleTimeString(),
-                    formattedEndTime: new Date(exam.endTime).toLocaleTimeString(),
-                };
-            });
-
-            // Render exams.ejs with formatted exams data and the formatDateExams function
-            res.render('exams', { exams: formattedExamsData, formatDateExams });
-        } catch (error) {
-            console.error('Error fetching exams:', error);
-            res.status(500).send('Error fetching exam assignments.');
-        } finally {
-            await untis.logout(); // Log out after fetching the exams to free resources
+        await untis.login(); // Await the login to the WebUntis instance
+        const examsData = await untis.getExamsForRange(rangeStart, rangeEnd); // Fetch exams
+        if(enableDebug) {
+            console.log('Exams data:', examsData);
         }
-    });
-}
+
+        // Format examsData to include formatted exam dates
+        const formattedExamsData = examsData.map(exam => {
+            const examDateString = String(exam.examDate); // Ensure examDate is a string
+
+            return {
+                ...exam,
+                formattedExamDate: formatDateExams(examDateString), // Convert examDate to readable format
+                formattedStartTime: new Date(exam.startTime).toLocaleTimeString(),
+                formattedEndTime: new Date(exam.endTime).toLocaleTimeString(),
+            };
+        });
+
+        // Render exams.ejs with formatted exams data and the formatDateExams function
+        res.render('exams', { exams: formattedExamsData, formatDateExams });
+    } catch (error) {
+        console.error('Error fetching exams:', error);
+        res.status(500).send('Error fetching exam assignments.');
+    } finally {
+        await untis.logout(); // Log out after fetching the exams to free resources
+    }
+});
 
 // Function to format date from YYYYMMDD to a more readable format
 function formatDateExams(dateString) {
@@ -909,26 +914,27 @@ function formatDateExams(dateString) {
 //////////////////////////////////////
 
 // Route to display timetable for a specific day
-if(!disableRoutesExceptIcal) {
-    app.get('/', async (req, res) => {
-        // Get the date from the query parameter, or default to today
-        const dateString = req.query.date || new Date().toISOString().split('T')[0];
-        const selectedDate = parseISO(dateString);
-        
-        const timetable = await getTimetable(selectedDate);
+app.get('/', async (req, res) => {
+    if (!routesEnabled) {
+        return res.status(403).send('Webinterface is disabled.');
+    }
+    // Get the date from the query parameter, or default to today
+    const dateString = req.query.date || new Date().toISOString().split('T')[0];
+    const selectedDate = parseISO(dateString);
+    
+    const timetable = await getTimetable(selectedDate);
 
-        // Prepare previous and next day links
-        const previousDay = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
-        const nextDay = format(addDays(selectedDate, 1), 'yyyy-MM-dd');
+    // Prepare previous and next day links
+    const previousDay = format(subDays(selectedDate, 1), 'yyyy-MM-dd');
+    const nextDay = format(addDays(selectedDate, 1), 'yyyy-MM-dd');
 
-        res.render('timetable', { 
-            timetable, 
-            date: format(selectedDate, 'yyyy-MM-dd'), 
-            previousDay, 
-            nextDay 
-        });
+    res.render('timetable', { 
+        timetable, 
+        date: format(selectedDate, 'yyyy-MM-dd'), 
+        previousDay, 
+        nextDay 
     });
-}
+});
 
 //////////////////////////////////////
 // READLINE INTERFACE FOR COMMANDS  //
@@ -951,6 +957,7 @@ const commands = {
         console.log("timetable - Caches the timetable");
         console.log("absences - Checks for new absences");
         console.log("homework - Checks for new homework");
+        console.log("temptoggleroutes - Temporarily toggles routes");
     },
     status: () => {
         console.log("Current scanner status:");
@@ -970,6 +977,10 @@ const commands = {
     },
     homework: () => {
         checkForHomework();
+    },
+    temptoggleroutes: () => {
+        routesEnabled = !routesEnabled;
+        console.log("Temporary toggled routes. Are routes enabled:", routesEnabled);
     },
     exit: () => {
         console.log("Exiting console...");
@@ -1003,6 +1014,8 @@ function listenForCommands() {
 
 function startUntis() {
     printAsciiArt();
+
+    
 
     //Respect settings from secrets.js
 

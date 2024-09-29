@@ -137,3 +137,4 @@ dist
 package-lock.json
 misc.json
 timetable.ics
+config.js

@@ -42,6 +42,14 @@ The script installs screen and npm if not already installed and guides you throu
    node index.js
    ```
 
+## iCal Sync
+- untis-notify can sync your timetable to your favorite calendar app (provided it supports iCal).
+- For this feature to work, go into your secrets.js and enable **enableWebServer**, **enableIcalStreaming** and set your **webServerPort** to one that is open to the web.
+- If you want to make sure that nobody can trigger an unauthorized API refresh via the webportal, please enable **disableRoutesExceptIcal** (highly recommended in production).
+- Your calendar will be available at http://YOURSERVER:PORT/timetable.ics
+- Keep in mind that this calendar is open to anyone with the link
+- The calendar will refresh in the same interval that is set for **checkInterval** in your config.js
+
 ## Usage:
 - The system monitors Untis automatically for changes in exams, homework, absences, and timetable changes every 10 minutes (customizable).
 - There is a debug web interface at `http://localhost:3000` which should not (yet) be exposed to the internet. There are options for keeping it off in the secrets file.
