@@ -65,7 +65,8 @@ async function getTimetable(date) {
 async function cacheTimetable() {
     console.log('[CACHING] Caching timetable...');
     try {
-        const rangeStart = new Date(); // Today's date
+        const rangeStart = new Date();
+        rangeStart.setDate(rangeStart.getDate() - 2); // Start 2 days before today, avoids midday cache issue due to timezones
         const rangeEnd = new Date();
         rangeEnd.setDate(rangeEnd.getDate() + 14); // 14 days from today
 
