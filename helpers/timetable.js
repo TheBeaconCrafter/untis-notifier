@@ -190,6 +190,7 @@ function compareTimetables(oldTimetable, newTimetable) {
                 lesson: newLesson,
                 startTime: newLesson.startTime, // Make sure these are included
                 endTime: newLesson.endTime,
+                date: newLesson.date,
             });
         } else {
             const changeDetails = hasLessonChanged(oldLesson, newLesson);

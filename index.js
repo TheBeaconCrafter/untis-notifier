@@ -200,6 +200,7 @@ const commands = {
     console.log("timetable - Caches the timetable");
     console.log("absences - Checks for new absences");
     console.log("homework - Checks for new homework");
+    console.log("cacheall - Check for all new data");
     console.log("temptoggleroutes - Temporarily toggles routes");
   },
   status: () => {
@@ -229,6 +230,12 @@ const commands = {
     checkForAbsences();
   },
   homework: () => {
+    checkForHomework();
+  },
+  cacheall: () => {
+    checkForExams(true);
+    cacheTimetable();
+    checkForAbsences();
     checkForHomework();
   },
   temptoggleroutes: () => {
