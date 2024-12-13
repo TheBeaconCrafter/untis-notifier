@@ -40,8 +40,9 @@ async function notifyDiscordTimetable(changes) {
         // Check if lessonDate is defined and valid
         const userId = discordUserID; // ID of the user to ping
         let lessonDate;
-        if (change.lesson) {
-            lessonDate = new Date(`${change.lesson.date.toString().slice(0, 4)}-${change.lesson.date.toString().slice(4, 6)}-${change.lesson.date.toString().slice(6, 8)}`);
+        if (change.date) {
+            console.log("Lesson date is defined:", change.date);
+            lessonDate = new Date(`${change.date.toString().slice(0, 4)}-${change.date.toString().slice(4, 6)}-${change.date.toString().slice(6, 8)}`);
         } else {
             console.error('Lesson date is undefined:', change);
             lessonDate = new Date(); // Fallback to current date if undefined

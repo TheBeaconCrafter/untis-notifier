@@ -194,6 +194,7 @@ function compareTimetables(oldTimetable, newTimetable) {
                     details: changeDetails,
                     startTime: newLesson.startTime, // Include these properties
                     endTime: newLesson.endTime,
+                    date: newLesson.date,
                 });
             }
         }
@@ -206,6 +207,7 @@ function compareTimetables(oldTimetable, newTimetable) {
                 lesson: oldLesson, // This is correct
                 startTime: oldLesson.startTime, // Include the start time for removed lessons
                 endTime: oldLesson.endTime, // Include the end time for removed lessons
+                date: oldLesson.date,
             });
         }
     }    
