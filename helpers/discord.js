@@ -41,7 +41,9 @@ async function notifyDiscordTimetable(changes) {
         const userId = discordUserID; // ID of the user to ping
         let lessonDate;
         if (change.date) {
-            console.log("Lesson date is defined:", change.date);
+            if(enableDebug) {
+                console.log("Lesson date is defined:", change.date);
+            }
             lessonDate = new Date(`${change.date.toString().slice(0, 4)}-${change.date.toString().slice(4, 6)}-${change.date.toString().slice(6, 8)}`);
         } else {
             console.error('Lesson date is undefined:', change);
@@ -85,16 +87,15 @@ async function notifyDiscordTimetable(changes) {
             \n**Old lesson:** ${oldLessonName} in room ${oldRoomName} (${oldRoomNameLong}) with ${oldTeacherName}.\n**New lesson:** ${newLessonName} in room ${newRoomName} (${newRoomNameLong}) with ${newTeacherName}.\n**Changes:** ${change.details.join(', ')}\n<@${userId}>`;
         } else if (change.type === 'removed') {
             // Accessing the correct lesson that was removed
-            const oldLessonName = change.lesson?.su?.[0]?.longname || 'Unknown subject'; // Changed this line
-            const oldRoomName = change.lesson?.ro?.[0]?.name || 'Unknown room'; // Changed this line
-            const oldRoomNameLong = change.lesson?.ro?.[0]?.longname || 'Unknown room'; // Changed this line
-            const oldTeacherName = change.lesson?.te?.[0]?.longname || 'Unknown teacher'; // Changed this line
+            const oldLessonName = change.lesson?.su?.[0]?.longname || 'Unknown subject';
+            const oldRoomName = change.lesson?.ro?.[0]?.name || 'Unknown room';
+            const oldRoomNameLong = change.lesson?.ro?.[0]?.longname || 'Unknown room';
+            const oldTeacherName = change.lesson?.te?.[0]?.longname || 'Unknown teacher';
         
             message = `❌ Lesson (${oldLessonName}) removed on ${lessonDate.toLocaleDateString()} ${lessonStart} - ${lessonEnd}: ${oldLessonName} in room ${oldRoomName} (${oldRoomNameLong}).\n<@${userId}>`;
         }
         
-
-        return message; // Return the generated message
+        return message;
     }).filter(message => message !== null).join('\n'); // Filter out null messages
 
     // Sending the message to Discord only if there are messages to send
@@ -109,13 +110,12 @@ async function notifyDiscordTimetable(changes) {
     }
 }
 
-// Function to send notification to Discord
 async function notifyDiscordHomework(homework) {
     console.log("Preparing to send homework notifications...");
 
     const userId = discordUserID; // ID of the user to ping
     let messageContent = homework.map(h => {
-        const formattedDueDate = new Date(h.dueDate).toLocaleDateString(); // Format the due date
+        const formattedDueDate = new Date(h.dueDate).toLocaleDateString();
 
         // Parse the created date from the format YYYYMMDD
         const createdYear = Math.floor(h.date / 10000);
@@ -146,12 +146,10 @@ async function notifyDiscordHomework(homework) {
         }
     }
 
-    // Debugging output for the final message
     if(enableDebug) {
         console.log("Message to be sent:\n", finalMessage);
     }
 
-    // Create the message object
     const message = {
         content: finalMessage
     };
@@ -175,7 +173,6 @@ async function notifyDiscordHomework(homework) {
     }
 }
 
-// Function to send notification to Discord
 async function notifyDiscordExams(exams) {
     console.log("Preparing to send exam notifications...");
 
@@ -218,10 +215,8 @@ async function notifyDiscordExams(exams) {
         }
     }
 
-    // Debugging output for the final message
     console.log("Message to be sent:\n", finalMessage);
 
-    // Create the message object
     const message = {
         content: finalMessage
     };
