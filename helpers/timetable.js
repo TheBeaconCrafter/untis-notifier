@@ -110,8 +110,11 @@ async function cacheTimetable() {
 
         // Check the last lesson date in the new timetable
         let newLastDate = newTimetable.length > 0 
-            ? Math.max(...newTimetable.map(lesson => lesson.date)) 
+            ? Math.min(...newTimetable.map(lesson => lesson.date)) 
             : null;
+
+        console.log('[CACHING] Last cached date:', lastCachedDate);
+        console.log('[CACHING] New last date:', newLastDate);
 
         if (lastCachedDate && newLastDate) {
             const lastDate = new Date(lastCachedDate.toString().slice(0, 4), 
@@ -128,11 +131,11 @@ async function cacheTimetable() {
             if (newDate.getTime() === oneDayLater.getTime()) {
                 // If it's one day later, overwrite the cache and log the action
                 fs.writeFileSync(timetableFilePath, JSON.stringify(newTimetable, null, 2));
-                console.log('Cache deleted and overwritten with new timetable.');
+                console.log('[CACHING] Cache deleted and overwritten with new timetable.');
 
                 // Update the last cached date in misc.json
                 fs.writeFileSync(miscFilePath, JSON.stringify({ lastCachedDate: newLastDate }, null, 2));
-                return; // Exit the function early to avoid unnecessary notification
+                return;
             }
         }
 

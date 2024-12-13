@@ -58,7 +58,7 @@ async function notifyDiscordAbsenceRemoved(absences) {
     });
 }
 
-// Function to send notification to Discord (Absence removed)
+// Function to send notification to Discord (Absence modified)
 async function notifyDiscordAbsenceModified(absences) {
     const userId = discordUserID; // ID of the user to ping
     const message = {
