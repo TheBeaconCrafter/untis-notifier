@@ -35,6 +35,52 @@ async function notifyDiscordAbsence(absences) {
     });
 }
 
+// Function to send notification to Discord (Absence removed)
+async function notifyDiscordAbsenceRemoved(absences) {
+    const userId = discordUserID; // ID of the user to ping
+    const message = {
+        content: `✅ <@${userId}>, an absence has been removed:\n` + 
+            absences.map(a => 
+                `**${a.studentName} **- ${a.reason} on ${a.date}\n` +
+                `**Created by: **${a.createdUser}\n` +
+                `**Status: **${a.isExcused}\n` +
+                `**Created Time: **${a.createdTime}\n` +
+                `**Last Edit Time: **${a.lastEditTime}\n` +
+                `**Start Time: **${a.startTime}\n` +
+                `**End Time: **${a.endTime}`
+            ).join('\n\n')
+    };
+    
+    await fetch(discordWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(message),
+    });
+}
+
+// Function to send notification to Discord (Absence removed)
+async function notifyDiscordAbsenceModified(absences) {
+    const userId = discordUserID; // ID of the user to ping
+    const message = {
+        content: `⏪ <@${userId}>, an absence has been modified:\n` + 
+            absences.map(a => 
+                `**${a.studentName} **- ${a.reason} on ${a.date}\n` +
+                `**Created by: **${a.createdUser}\n` +
+                `**Status: **${a.isExcused}\n` +
+                `**Created Time: **${a.createdTime}\n` +
+                `**Last Edit Time: **${a.lastEditTime}\n` +
+                `**Start Time: **${a.startTime}\n` +
+                `**End Time: **${a.endTime}`
+            ).join('\n\n')
+    };
+    
+    await fetch(discordWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(message),
+    });
+}
+
 async function notifyDiscordTimetable(changes) {
     const messages = changes.map(change => {
         // Check if lessonDate is defined and valid
@@ -242,7 +288,9 @@ async function notifyDiscordExams(exams) {
 
 export default {
     notifyDiscordAbsence,
+    notifyDiscordAbsenceModified,
+    notifyDiscordAbsenceRemoved,
     notifyDiscordTimetable,
     notifyDiscordHomework,
-    notifyDiscordExams
+    notifyDiscordExams,
 };

@@ -59,7 +59,7 @@ const miscFilePath = path.join(
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const versionNumber = "1.0.1";
+const versionNumber = "1.1.0";
 
 // Setup Express server
 const app = express();

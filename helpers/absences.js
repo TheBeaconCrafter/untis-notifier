@@ -19,7 +19,11 @@ const {
     enableDebug,
 } = secrets;
 
-const { notifyDiscordAbsence } = discord;
+const {
+    notifyDiscordAbsence,
+    notifyDiscordAbsenceModified,
+    notifyDiscordAbsenceRemoved,
+} = discord;
 
 const { 
     formatTimeUntis,
@@ -111,6 +115,50 @@ async function checkForAbsences() {
             )
         );
 
+        const excusedAbsences = absentLessons.filter(absence => 
+            previousAbsences.some(prevAbsence => 
+                prevAbsence.studentName === absence.studentName &&
+                prevAbsence.date === absence.date &&
+                prevAbsence.startTime === absence.startTime &&
+                prevAbsence.endTime === absence.endTime &&
+                prevAbsence.isExcused !== absence.isExcused && 
+                absence.isExcused === 'Excused'
+            )
+        );
+        
+        const removedAbsences = previousAbsences.filter(prevAbsence =>
+            !absentLessons.some(absence => 
+                prevAbsence.studentName === absence.studentName &&
+                prevAbsence.date === absence.date &&
+                prevAbsence.startTime === absence.startTime &&
+                prevAbsence.endTime === absence.endTime
+            )
+        );
+
+        if (removedAbsences.length > 0) {
+            console.log("Some absences were removed. Notifying Discord...");
+            if(enableDebug) {
+                console.log('Removed absences:', removedAbsences);
+            }
+            notifyDiscordAbsenceRemoved(removedAbsences);
+        } else {
+            if(enableDebug) {
+                console.log("No absences were removed.");
+            }
+        }
+
+        if (excusedAbsences.length > 0) {
+            console.log("New absences were excused. Notifying Discord...");
+            if(enableDebug) {
+                console.log('New excused absences:', excusedAbsences);
+            }
+            notifyDiscordAbsenceModified(excusedAbsences);
+        } else {
+            if(enableDebug) {
+                console.log('No new excused absences.');
+            }
+        }
+
         if (newAbsences.length > 0) {
             // TODO: Notify via Slack or Discord
             if(enableDebug) {
@@ -119,10 +167,9 @@ async function checkForAbsences() {
                 console.log("There are new absences. Notifying Discord...");
             }
             await notifyDiscordAbsence(newAbsences);
-
-            // Update the local absence file with all current absences
-            fs.writeFileSync(absenceFilePath, JSON.stringify(absentLessons, null, 2));
         }
+        fs.writeFileSync(absenceFilePath, JSON.stringify(absentLessons, null, 2));
+        
     } catch (error) {
         console.error('Error checking for absences:', error);
     }
