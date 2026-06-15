@@ -12,7 +12,22 @@ function getPingMention() {
   return config.discord.pingTarget.mention || '';
 }
 
-// ─── Embed Builders ──────────────────────────
+// ─── Embed & Short Text Builders ──────────────────────────
+
+function buildAbsenceShortText(absence, type) {
+  let dateStr = absence.date || '?';
+  if (dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) dateStr = `${parts[2]}.${parts[1]}`;
+  }
+  const name = absence.studentName || 'Student';
+  const time = `(${absence.startTime} - ${absence.endTime})`;
+  
+  if (type === 'new') return `New absence for ${name} on ${dateStr} ${time}.`;
+  if (type === 'removed') return `Absence removed for ${name} on ${dateStr} ${time}.`;
+  if (type === 'modified') return `Absence modified for ${name} on ${dateStr} ${time}.`;
+  return '';
+}
 
 function buildAbsenceEmbed(absence, type = 'new') {
   const colors = { new: 0xffa500, removed: 0x2ecc71, modified: 0x3498db };
@@ -35,6 +50,46 @@ function buildAbsenceEmbed(absence, type = 'new') {
     ],
     timestamp: new Date().toISOString(),
   };
+}
+
+function buildTimetableShortText(change) {
+  let lessonDate;
+  if (change.date) {
+    const d = change.date.toString();
+    lessonDate = `${d.slice(6, 8)}.${d.slice(4, 6)}`;
+  } else {
+    const today = new Date();
+    lessonDate = `${String(today.getDate()).padStart(2, '0')}.${String(today.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  const lessonStart = change.startTime ? formatTimeUntis(change.startTime) : '??:??';
+  const lessonEnd = change.endTime ? formatTimeUntis(change.endTime) : '??:??';
+  const timeStr = `(${lessonStart} - ${lessonEnd})`;
+
+  if (change.type === 'new') {
+    const name = change.lesson?.su?.[0]?.name || 'Unknown';
+    const teacher = change.lesson?.te?.[0]?.name || 'Unknown';
+    return `New lesson ${name} with ${teacher} added on ${lessonDate} ${timeStr}.`;
+  }
+
+  if (change.type === 'modified') {
+    const newName = change.newLesson?.su?.[0]?.name || 'Unknown';
+    const newTeacher = change.newLesson?.te?.[0]?.name || 'Unknown';
+    const changesList = change.details?.join(', ') || 'modified';
+    
+    if (change.newLesson?.code === 'cancelled') {
+      return `${newName} with ${newTeacher} on ${lessonDate} is cancelled ${timeStr}.`;
+    }
+    return `${newName} with ${newTeacher} on ${lessonDate} is modified: ${changesList} ${timeStr}.`;
+  }
+
+  if (change.type === 'removed') {
+    const name = change.lesson?.su?.[0]?.name || 'Unknown';
+    const teacher = change.lesson?.te?.[0]?.name || 'Unknown';
+    return `${name} with ${teacher} on ${lessonDate} is removed ${timeStr}.`;
+  }
+
+  return '';
 }
 
 function buildTimetableEmbed(change) {
@@ -114,6 +169,19 @@ function buildTimetableEmbed(change) {
   return null;
 }
 
+function buildHomeworkShortText(hw) {
+  let formattedDueDate = '?';
+  if (hw.dueDate instanceof Date) {
+    formattedDueDate = `${String(hw.dueDate.getDate()).padStart(2, '0')}.${String(hw.dueDate.getMonth() + 1).padStart(2, '0')}`;
+  } else if (hw.dueDate) {
+    const hwDate = new Date(hw.dueDate);
+    if (!isNaN(hwDate)) {
+      formattedDueDate = `${String(hwDate.getDate()).padStart(2, '0')}.${String(hwDate.getMonth() + 1).padStart(2, '0')}`;
+    }
+  }
+  return `New homework for ${hw.lessonId || 'subject'} due on ${formattedDueDate}.`;
+}
+
 function buildHomeworkEmbed(hw) {
   const formattedDueDate = hw.dueDate instanceof Date
     ? hw.dueDate.toLocaleDateString()
@@ -130,6 +198,14 @@ function buildHomeworkEmbed(hw) {
     ],
     timestamp: new Date().toISOString(),
   };
+}
+
+function buildExamShortText(exam) {
+  const formattedStart = formatTimeUntis(exam.startTime);
+  const formattedEnd = formatTimeUntis(exam.endTime);
+  const day = String(exam.examDate % 100).padStart(2, '0');
+  const month = String(Math.floor((exam.examDate % 10000) / 100)).padStart(2, '0');
+  return `New exam ${exam.name || exam.subject || 'Unknown'} on ${day}.${month} (${formattedStart} - ${formattedEnd}).`;
 }
 
 function buildExamEmbed(exam) {
@@ -210,13 +286,28 @@ async function sendBatchedNotification(changes) {
   }
 
   for (let i = 0; i < chunks.length; i++) {
+    const chunkChanges = changes.slice(i * 10, (i + 1) * 10);
+    const chunkEmbeds = chunks[i];
+    const chunkTexts = chunkChanges.map(c => c._shortText).filter(Boolean).map(t => `• ${t}`);
+
     const payload = {
-      embeds: chunks[i],
+      embeds: chunkEmbeds,
     };
 
-    // Only include the summary text and mention in the first message
+    let contentText = '';
+    // Only include the mention and summary header in the first message chunk
     if (i === 0) {
-      payload.content = mention ? `${summary}\n\n${mention}` : summary;
+      if (mention) contentText += `${mention} `;
+      contentText += summary;
+    }
+
+    if (chunkTexts.length > 0) {
+      if (contentText) contentText += '\n\n';
+      contentText += chunkTexts.join('\n');
+    }
+
+    if (contentText) {
+      payload.content = contentText;
     }
 
     try {
@@ -253,13 +344,16 @@ function tagAbsenceChanges(absences, type = 'new') {
   return absences.map(a => ({
     _category: 'absence',
     _embed: buildAbsenceEmbed(a, type),
+    _shortText: buildAbsenceShortText(a, type),
   }));
 }
 
 function tagTimetableChanges(changes) {
   return changes.map(c => ({
+    ...c,
     _category: 'timetable',
     _embed: buildTimetableEmbed(c),
+    _shortText: buildTimetableShortText(c),
   })).filter(c => c._embed !== null);
 }
 
@@ -267,6 +361,7 @@ function tagHomeworkChanges(homeworkList) {
   return homeworkList.map(h => ({
     _category: 'homework',
     _embed: buildHomeworkEmbed(h),
+    _shortText: buildHomeworkShortText(h),
   }));
 }
 
@@ -274,6 +369,7 @@ function tagExamChanges(exams) {
   return exams.map(e => ({
     _category: 'exam',
     _embed: buildExamEmbed(e),
+    _shortText: buildExamShortText(e),
   }));
 }
 
