@@ -97,6 +97,15 @@ When running, type commands in the console:
 | `toggleroutes` | Toggle web routes on/off |
 | `exit` | Stop the application |
 
+## Deployment (PM2)
+
+For a production environment, it is recommended to run the app using PM2 to ensure it stays online in the background and restarts automatically on failure.
+
+1. Install PM2 globally: `npm install -g pm2`
+2. Start the application: `pm2 start ecosystem.config.cjs`
+3. View logs: `pm2 logs untis-notifier`
+4. Setup PM2 to start on boot: `pm2 startup` and `pm2 save`
+
 ## Running Tests
 
 ```bash
