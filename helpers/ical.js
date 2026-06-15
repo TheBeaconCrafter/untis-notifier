@@ -3,6 +3,7 @@ import config from '../config.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { DateTime } from 'luxon';
 
 //////////////////////////////////////
 // ICal Streaming (Timetable Sync)  //
@@ -13,7 +14,7 @@ const projectRoot = path.join(__dirname, '..');
 
 async function icalStreaming(timetable) {
   try {
-    const calendar = ical({ name: 'School Timetable' });
+    const calendar = ical({ name: 'School Timetable', timezone: config.icalTimezone });
 
     timetable.forEach(lesson => {
       if (config.enableDebug) {
@@ -31,8 +32,15 @@ async function icalStreaming(timetable) {
       const endHour = Math.floor(lesson.endTime / 100);
       const endMinute = lesson.endTime % 100;
 
-      const start = new Date(year, month, day, startHour, startMinute);
-      const end = new Date(year, month, day, endHour, endMinute);
+      const start = DateTime.fromObject(
+        { year, month: month + 1, day, hour: startHour, minute: startMinute },
+        { zone: config.icalTimezone }
+      );
+      
+      const end = DateTime.fromObject(
+        { year, month: month + 1, day, hour: endHour, minute: endMinute },
+        { zone: config.icalTimezone }
+      );
 
       let summary = lesson.su[0]?.longname
         ? lesson.su[0].longname

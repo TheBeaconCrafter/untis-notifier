@@ -68,6 +68,7 @@ const config = Object.freeze({
   rangeStart: process.env.RANGE_START || '2024-09-09T00:00:00',
   enableIcalStreaming: envBool('ENABLE_ICAL_STREAMING', false),
   icalFileName: process.env.ICAL_FILE_NAME || 'timetable.ics',
+  icalTimezone: process.env.ICAL_TIMEZONE || 'Europe/Berlin',
   enableDebug: envBool('ENABLE_DEBUG', false),
   enableCorsForIcsViewer: envBool('ENABLE_CORS_FOR_ICS_VIEWER', false),
 });
