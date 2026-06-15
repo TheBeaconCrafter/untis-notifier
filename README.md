@@ -1,75 +1,116 @@
 # Untis Notifier
 
-This project is a notification system for Untis, a school scheduling software. It allows users to receive notifications about upcoming events, such as exams, assignments, or class changes.
+A notification system for [WebUntis](https://www.untis.at/) that monitors your school schedule and sends batched Discord notifications when changes are detectet (such as exams, homework, absences, and timetable changes).
 
-## Features:
-- **Real-time notifications**: The system sends notifications to users whenever there is a change in their schedule.
-- **Customizable notifications**: Users can choose which types of events they want to be notified about and how they want to receive the notifications (e.g., Discord Webhooks, Slack Webhooks).
-- **iCal Integration**: Sync your timetable to your calendar app with iCal. The calendar stream shows you when, where and with whom your classes are.
-- **No exposed ports**: You don't have to expose any ports or have an outward facing server due to the use of webhooks.
+## Features
 
-**⚠️ IMPORTANT ⚠️** This project was built and tested on Node JS version v20.17.0. It may fail to run on older/newer versions.
+- **Batched Discord notifications**: Multiple changes in a single check cycle are combined into one rich embed message instead of spamming individual pings
+- **Group pings**: Ping a Discord role (e.g., `@ClassOf2025`) instead of just a single user
+- **SQLite storage**: Reliable local data persistence using SQLite instead of JSON files
+- **iCal sync**: Stream your timetable to any calendar app via iCal
+- **No exposed ports**: Webhook-based — no need for an outward-facing server
 
-## Quick Install:
+## Requirements
+
+- **Node.js 18+** (tested on v20)
+- A Discord Webhook URL
+- WebUntis credentials
+
+## Quick Install
+
+```bash
+git clone https://github.com/TheBeaconCrafter/untis-notifier.git
+cd untis-notifier
+chmod +x setup.sh
+./setup.sh
+```
+
+The script installs dependencies and guides you through creating your `.env` configuration file.
+
+## Manual Install
+
 1. Clone the repository:
    ```bash
    git clone https://github.com/TheBeaconCrafter/untis-notifier.git
+   cd untis-notifier
    ```
-2. Make the install script executable:
-   ```bash
-   chmod +x setup.sh
-   ```
-3. Run the install script:
-   ```bash
-   ./setup.sh
-   ```
-The script installs screen and npm if not already installed and guides you through the setup process. For manual installation, refer to the paragraph below.
 
-## Manual Install:
-1. Clone the repository:
+2. Install dependencies:
    ```bash
-   git clone https://github.com/TheBeaconCrafter/untis-notifier.git
+   npm install
    ```
-2. Install the required dependencies:
+
+3. Create your `.env` file:
    ```bash
-   npm install node-fetch webuntis path express date-fns ejs ical-generator readline
+   cp .env.example .env
    ```
-3. Set up the configuration file: 
-   - Copy the `configExample.js` file and rename it to `config.js`.
-   - Fill in the necessary information, such as your Untis credentials and notification settings.
-4. Run the application:
+   Edit `.env` and fill in your credentials and settings.
+
+4. Run:
    ```bash
-   node index.js
+   npm start
    ```
+
+## Configuration
+
+All configuration is done via environment variables in the `.env` file. See [`.env.example`](.env.example) for all available options.
+
+### Discord Ping Target
+
+The `DISCORD_PING_TARGET` variable controls who gets pinged:
+
+| Format | Example | Effect |
+|--------|---------|--------|
+| `user:ID` | `user:123456789012345678` | Pings a specific user |
+| `role:ID` | `role:987654321098765432` | Pings a Discord role (group) |
+| _(empty)_ | | No ping, just sends the message |
+
+To find a user ID: Enable Developer Mode in Discord → Right-click user → Copy ID.
+To find a role ID: Server Settings → Roles → Right-click role → Copy ID.
 
 ## iCal Sync
-- untis-notify can sync your timetable to your favorite calendar app (provided it supports iCal).
-- For this feature to work, go into your config.js and enable **enableWebServer**, **enableIcalStreaming** and set your **webServerPort** to one that is open to the web.
-- If you want to make sure that nobody can trigger an unauthorized API refresh via the webportal, please enable **disableRoutesExceptIcal** (highly recommended in production).
-- Your calendar will be available at http://YOURSERVER:PORT/timetable.ics
-- Keep in mind that this calendar is open to anyone with the link
-- The calendar will refresh in the same interval that is set for **checkInterval** in your config.js
 
-## Usage:
-- The system monitors Untis automatically for changes in exams, homework, absences, and timetable changes every 10 minutes (customizable).
-- There is a debug web interface at `http://localhost:3000` which should not (yet) be exposed to the internet. There are options for keeping it off in the secrets file.
-- **Note**: This software is in early development, so expect bugs. It was built and tested with node version v20.17.0.
+Sync your timetable to your favorite calendar app:
 
-## Contributing:
-1. Fork the repository.
-2. Create a new branch:
-   ```bash
-   git checkout -b feature/your-feature
-   ```
-3. Make your changes and commit them:
-   ```bash
-   git commit -m 'Add some feature'
-   ```
-4. Push to the branch:
-   ```bash
-   git push origin feature/your-feature
-   ```
-5. Submit a pull request.
+1. In `.env`, set:
+   - `ENABLE_WEB_SERVER=true`
+   - `ENABLE_ICAL_STREAMING=true`
+   - `WEB_SERVER_PORT=3000` (or any open port)
 
-## License:
-This project is licensed under the MIT License. See the `LICENSE` file for more information.
+2. Optionally enable `DISABLE_ROUTES_EXCEPT_ICAL=true` for production security
+
+3. Your calendar will be available at `http://YOUR_SERVER:PORT/timetable.ics` (or the custom name you configured in `ICAL_FILE_NAME`).
+
+## Console Commands
+
+When running, type commands in the console:
+
+| Command | Description |
+|---------|-------------|
+| `help` | Show available commands |
+| `status` | Show current scanning status |
+| `cacheall` | Force check all scanners now |
+| `timetable` | Force timetable check |
+| `exams` | Force exam check |
+| `homework` | Force homework check |
+| `absences` | Force absence check |
+| `toggleroutes` | Toggle web routes on/off |
+| `exit` | Stop the application |
+
+## Running Tests
+
+```bash
+npm test
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit your changes: `git commit -m 'Add some feature'`
+4. Push to the branch: `git push origin feature/your-feature`
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License. See the [`LICENSE.md`](LICENSE.md) file for more information.

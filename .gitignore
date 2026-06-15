@@ -7,11 +7,17 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+# Legacy data files (no longer used — data is in SQLite)
 exams.json
 absences.json
 homework.json
 timetable.json
-secrets.js
+misc.json
+
+# SQLite database
+*.db
+*.db-wal
+*.db-shm
 
 /legacy
 
@@ -101,9 +107,6 @@ dist
 
 # Gatsby files
 .cache/
-# Comment in the public line in if your project uses Gatsby and not Next.js
-# https://nextjs.org/blog/next-9-1#public-directory-support
-# public
 
 # vuepress build output
 .vuepress/dist
@@ -137,6 +140,4 @@ dist
 .yarn/install-state.gz
 .pnp.*
 package-lock.json
-misc.json
 timetable.ics
-config.js

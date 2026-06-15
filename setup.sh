@@ -3,15 +3,20 @@
 # Print ASCII art
 cat << "EOF"
               __  .__                                __  .__  _____       
- __ __  _____/  |_|__| ______           ____   _____/  |_|__|/ ____\__.__.
+ __ __  _____/  |_|__| ______           ____   _____/  |_|__|/ ____\__.__. 
 |  |  \/    \   __\  |/  ___/  ______  /    \ /  _ \   __\  \   __<   |  |
 |  |  /   |  \  | |  |\___ \  /_____/ |   |  (  <_> )  | |  ||  |  \___  |
 |____/|___|  /__| |__/____  >         |___|  /\____/|__| |__||__|  / ____|
            \/             \/               \/                      \/     
 EOF
 
+echo ""
+echo "untis-notifier v2.0 setup"
+echo "========================="
+echo ""
+
 # Ask the user if they want to run the script
-read -p "Do you want to run the setup script? This script will install screen and npm if not already installed and guide you through the setup process. (y/n): " answer
+read -p "Do you want to run the setup script? (y/n): " answer
 
 if [[ "$answer" != "y" ]]; then
     echo "Setup aborted."
@@ -35,67 +40,118 @@ prompt_true_false() {
     done
 }
 
-# Ask for user input on each variable
+# ── Discord settings ──
+echo ""
+echo "── Discord Settings ──"
 read -p "Enter your Discord Webhook URL: " discordWebhookUrl
-read -p "Enter your Discord User ID: " discordUserID
-read -p "Enter your school name (you can find this in the URL bar when you log in on the web, replace + with space): " schoolName
+echo ""
+echo "Who should be pinged when changes are detected?"
+echo "  Enter 'user:YOUR_DISCORD_USER_ID' to ping a specific user"
+echo "  Enter 'role:YOUR_DISCORD_ROLE_ID' to ping a role (group ping)"
+echo "  Leave empty for no ping"
+read -p "Ping target: " discordPingTarget
+
+# ── WebUntis credentials ──
+echo ""
+echo "── WebUntis Credentials ──"
+read -p "Enter your school name (as in the WebUntis URL, replace + with space): " schoolName
 read -p "Enter your WebUntis username: " username
 read -sp "Enter your WebUntis password: " password
 echo ""
-read -p "Enter your WebUntis base URL (e.g., borys.webuntis.com, you can find this in the URL bar when you log in in the browser): " untisURL
-prompt_true_false "Enable Web Server? (Not recommended, do not expose to the web)" enableWebServer
+read -p "Enter your WebUntis base URL (e.g., borys.webuntis.com): " untisURL
+
+# ── Server settings ──
+echo ""
+echo "── Server Settings ──"
+prompt_true_false "Enable Web Server? (Not recommended unless you need iCal sync)" enableWebServer
 read -p "Enter the web server port (default 3000): " webServerPort
 webServerPort=${webServerPort:-3000}
-prompt_true_false "Disable all routes except iCal? (Recommended for production to keep the server secure)" disableRoutesWoIcal
-read -p "Enter check interval in milliseconds (default 600000): " checkInterval
+prompt_true_false "Disable all routes except iCal? (Recommended for production)" disableRoutesWoIcal
+
+# ── Scanning settings ──
+echo ""
+echo "── Scanning Settings ──"
+read -p "Enter check interval in milliseconds (default 600000 = 10 min): " checkInterval
 checkInterval=${checkInterval:-600000}
 prompt_true_false "Enable absence scanning?" enableAbsenceScanning
 prompt_true_false "Enable homework scanning?" enableHomeworkScanning
 prompt_true_false "Enable exam scanning?" enableExamScanning
 prompt_true_false "Enable timetable change scanning?" enableTimetableChangeScanning
-prompt_true_false "Enable iCal streaming (Beta, allows to sync Untis to your calendar)?" enableIcalStreaming
-read -p "Enter the range start setting (e.g., 2024-09-09T00:00:00, default is 2024-09-09T00:00:00): " rangeStartSetting
-rangeStartSetting=${rangeStartSetting:-2024-09-09T00:00:00} # Default to specified date
+prompt_true_false "Enable iCal streaming (sync timetable to calendar apps)?" enableIcalStreaming
+
+# ── Misc ──
+echo ""
+echo "── Misc ──"
+read -p "Enter range start date (e.g., 2024-09-09T00:00:00): " rangeStartSetting
+rangeStartSetting=${rangeStartSetting:-2024-09-09T00:00:00}
 prompt_true_false "Enable debug mode?" enableDebug
 
-# Confirm all inputs before proceeding
+# Confirm
 echo ""
-echo "You have entered the following values:"
+echo "═══════════════════════════════════"
+echo "  Configuration Summary"
+echo "═══════════════════════════════════"
 echo "Discord Webhook URL: $discordWebhookUrl"
-echo "Discord User ID: $discordUserID"
+echo "Discord Ping Target: ${discordPingTarget:-'(none)'}"
 echo "School Name: $schoolName"
 echo "WebUntis Username: $username"
 echo "WebUntis Password: [hidden]"
 echo "WebUntis Base URL: $untisURL"
 echo "Enable Web Server: $enableWebServer"
 echo "Web Server Port: $webServerPort"
-echo "Check Interval: $checkInterval"
-echo "Enable Absence Scanning: $enableAbsenceScanning"
-echo "Enable Homework Scanning: $enableHomeworkScanning"
-echo "Enable Exam Scanning: $enableExamScanning"
-echo "Enable Timetable Change Scanning: $enableTimetableChangeScanning"
-echo "Range Start Setting: $rangeStartSetting"
-echo "Enable Debug Mode: $enableDebug"
+echo "Disable Routes (except iCal): $disableRoutesWoIcal"
+echo "Check Interval: $checkInterval ms"
+echo "Absence Scanning: $enableAbsenceScanning"
+echo "Homework Scanning: $enableHomeworkScanning"
+echo "Exam Scanning: $enableExamScanning"
+echo "Timetable Scanning: $enableTimetableChangeScanning"
+echo "iCal Streaming: $enableIcalStreaming"
+echo "Range Start: $rangeStartSetting"
+echo "Debug Mode: $enableDebug"
+echo "═══════════════════════════════════"
 
-read -p "Do you want to proceed with the installation? (y/n): " confirm
+read -p "Proceed with installation? (y/n): " confirm
 
 if [[ "$confirm" != "y" ]]; then
     echo "Setup aborted."
     exit 0
 fi
 
-# Install necessary packages
-echo "Installing screen..."
-sudo apt-get update && sudo apt-get install -y screen
+# Install npm dependencies
+echo ""
+echo "Installing dependencies..."
+npm install
 
-# Install npm if it's not already installed
-if ! command -v npm &> /dev/null; then
-    echo "Installing npm..."
-    sudo apt-get install -y npm
-fi
+# Create .env file
+echo "Creating .env file..."
+cat << EOF > .env
+# ── Discord ──
+DISCORD_WEBHOOK_URL=$discordWebhookUrl
+DISCORD_PING_TARGET=$discordPingTarget
 
-echo "Installing npm packages..."
-npm install node-fetch webuntis path express date-fns ejs ical-generator readline
+# ── WebUntis ──
+UNTIS_SCHOOL_NAME=$schoolName
+UNTIS_USERNAME=$username
+UNTIS_PASSWORD=$password
+UNTIS_URL=$untisURL
+
+# ── Server ──
+ENABLE_WEB_SERVER=$enableWebServer
+WEB_SERVER_PORT=$webServerPort
+DISABLE_ROUTES_EXCEPT_ICAL=$disableRoutesWoIcal
+
+# ── Scanning ──
+CHECK_INTERVAL=$checkInterval
+ENABLE_ABSENCE_SCANNING=$enableAbsenceScanning
+ENABLE_HOMEWORK_SCANNING=$enableHomeworkScanning
+ENABLE_EXAM_SCANNING=$enableExamScanning
+ENABLE_TIMETABLE_SCANNING=$enableTimetableChangeScanning
+
+# ── Misc ──
+RANGE_START=$rangeStartSetting
+ENABLE_ICAL_STREAMING=$enableIcalStreaming
+ENABLE_DEBUG=$enableDebug
+EOF
 
 # Create start.sh file
 echo "Creating start.sh..."
@@ -106,61 +162,7 @@ echo "echo 'To enter the screen session, run: screen -r untis-notify'" >> start.
 echo "echo 'To close the screen session, press Ctrl+A then D'" >> start.sh
 chmod +x start.sh
 
-# Create config.js file
-echo "Creating config.js..."
-cat << EOF > config.js
-//////////////////////////////////
-//            CONFIG            //
-//////////////////////////////////
-
-// After you have filled in the following information, rename this file to config.js
-
-// Discord Webhook URL
-const discordWebhookUrl = '$discordWebhookUrl'; // Replace with your Discord Webhook URL
-const discordUserID = '$discordUserID'; // Replace with your personal Discord User ID (this allows the bot to mention you so you get pings)
-
-// WebUntis credentials and settings
-const schoolName = '$schoolName'; // Replace with your school name
-const username = '$username'; // Replace with your WebUntis username
-const password = '$password'; // Replace with your WebUntis password
-const untisURL = '$untisURL'; // Log into Webuntis online, search for your school and press login. Copy the base URL and paste it here (ex. borys.webuntis.com)
-
-const enableWebServer = $enableWebServer; // Set to true to enable the debug web interface, required for iCal sync
-const webServerPort = $webServerPort; // Port for the debug web interface
-const disableRoutesExceptIcal = $disableRoutesWoIcal; // Set to true to disable all routes except the iCal route (recommended for prod to keep the server secure)
-
-const checkInterval = $checkInterval; // Interval in milliseconds to check for new data (do not set too low to avoid getting rate limited by WebUntis)
-const enableAbsenceScanning = $enableAbsenceScanning; // Set to true to enable absence scanning
-const enableHomeworkScanning = $enableHomeworkScanning; // Set to true to enable homework scanning
-const enableExamScanning = $enableExamScanning; // Set to true to enable exam scanning
-const enableTimetableChangeScanning = $enableTimetableChangeScanning; // Set to true to enable exam scanning
-
-const rangeStartSetting = "$rangeStartSetting"; // This will be the start of the range for the timetable etc. I recommend setting this to the start of the school year
-
-const enableIcalStreaming = $enableIcalStreaming; // Set to true to enable iCal sync (this will allow you to sync your timetable with your calendar app) - Only works if web server is on
-
-const enableDebug = $enableDebug; // Set to true to enable debug mode (more output in the console)
-
-// Export all secrets
-export default {
-    discordWebhookUrl,
-    discordUserID,
-    schoolName,
-    username,
-    password,
-    untisURL,
-    enableWebServer,
-    webServerPort,
-    checkInterval,
-    rangeStartSetting,
-    enableDebug,
-    enableAbsenceScanning,
-    enableHomeworkScanning,
-    enableExamScanning,
-    enableTimetableChangeScanning,
-    enableIcalStreaming,
-    disableRoutesExceptIcal
-};
-EOF
-
-echo "Setup completed! Please review the settings in config.js and make any necessary adjustments."
+echo ""
+echo "✅ Setup completed!"
+echo "Review your .env file and run: npm start"
+echo ""
