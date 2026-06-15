@@ -88,7 +88,7 @@ vi.mock('webuntis', () => {
   };
 
   return {
-    WebUntis: vi.fn(() => mockUntis),
+    WebUntis: vi.fn(function() { return mockUntis; }),
   };
 });
 
