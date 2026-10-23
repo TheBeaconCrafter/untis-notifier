@@ -12,7 +12,7 @@ A notification system for [WebUntis](https://www.untis.at/) that monitors your s
 
 ## Requirements
 
-- **Node.js 18+** (tested on v20)
+- **Node.js 22.23.4+, 24.22.1+, or 26.12.1+** within those release lines (Node 22 recommended)
 - A Discord Webhook URL
 - WebUntis credentials
 
@@ -35,8 +35,10 @@ The script installs dependencies and guides you through creating your `.env` con
    cd untis-notifier
    ```
 
-2. Install dependencies:
+2. Select the pinned runtime (if using nvm) and install dependencies:
    ```bash
+   nvm install
+   nvm use
    npm install
    ```
 
@@ -105,6 +107,14 @@ For a production environment, it is recommended to run the app using PM2 to ensu
 2. Start the application: `pm2 start ecosystem.config.cjs`
 3. View logs: `pm2 logs untis-notifier`
 4. Setup PM2 to start on boot: `pm2 startup` and `pm2 save`
+
+### Updating Node.js on an existing deployment
+
+Use a supported, patched Node.js release satisfying `engines.node` in `package.json`. The minimum versions above include the [October 21, 2026 security fixes](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases).
+
+After changing Node major versions, run `npm rebuild better-sqlite3` using the new runtime before restarting the app. This rebuilds the native SQLite binding for the new Node ABI; do not commit `node_modules` or compiled binaries. Back up the database and keep a copy of the previous native binding for rollback.
+
+With PM2, ensure both its startup service and the application interpreter use the new Node binary. Restart the application, run `pm2 save`, and regenerate the startup service with `pm2 unstartup` / `pm2 startup` if its Node path changed. Verify the runtime reported by `pm2 describe untis-notifier`, check logs, and confirm the process stays online.
 
 ## Running Tests
 
